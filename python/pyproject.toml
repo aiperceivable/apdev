@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "apdev"
-version = "0.1.0"
+version = "0.1.1"
 description = "Shared development tools for Python projects - character validation, circular import detection, and more"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -26,6 +26,7 @@ classifiers = [
 ]
 dependencies = [
     "tomli>=1.1.0;python_version<'3.11'",
+    "build>=1.0",
 ]
 
 [project.scripts]

@@ -5,6 +5,14 @@ All notable changes to the Python package will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+
+## [0.1.1] - 2026-02-14
+
+### Added
+
+- Add `build>=1.0` as a project dependency for package building support
+
+
 ## [0.1.0] - 2026-02-14
 
 ### Added

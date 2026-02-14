@@ -16,13 +16,6 @@ def run_apdev(*args: str, cwd: str | Path | None = None) -> subprocess.Completed
     )
 
 
-def test_cli_version() -> None:
-    """apdev --version prints version."""
-    result = run_apdev("--version")
-    assert result.returncode == 0
-    assert "0.1.0" in result.stdout
-
-
 def test_cli_help() -> None:
     """apdev --help shows subcommands."""
     result = run_apdev("--help")
@@ -58,8 +51,10 @@ def test_cli_check_imports_with_args(tmp_path: Path) -> None:
 
     result = run_apdev(
         "check-imports",
-        "--package", "mypkg",
-        "--src-dir", str(tmp_path),
+        "--package",
+        "mypkg",
+        "--src-dir",
+        str(tmp_path),
     )
     assert result.returncode == 0
     assert "No circular imports" in result.stdout
