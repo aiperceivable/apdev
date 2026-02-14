@@ -32,7 +32,7 @@ if [ -z "$GITHUB_REPO" ]; then
     REMOTE_URL=$(git remote get-url origin 2>/dev/null)
     if [ -n "$REMOTE_URL" ]; then
         # Extract owner/repo from SSH or HTTPS URL
-        GITHUB_REPO=$(echo "$REMOTE_URL" | sed -E 's|.*github\.com[:/](.+/.+?)(\.git)?$|\1|')
+        GITHUB_REPO=$(echo "$REMOTE_URL" | sed -E 's|.*github\.com[:/]||; s|\.git$||')
     fi
     if [ -z "$GITHUB_REPO" ]; then
         echo -e "${YELLOW}Warning: Could not detect GitHub repo from git remote${NC}"
@@ -71,9 +71,12 @@ check_tag_exists() {
 }
 
 check_pypi_uploaded() {
-    # Check if version exists on PyPI (simple check via pip)
-    # Use grep -w for exact word match to avoid partial matches like "0.13.0-dev"
-    pip index versions "${PROJECT_NAME}" 2>/dev/null | grep -w "${VERSION}" > /dev/null 2>&1 && return 0 || return 1
+    # Check if version exists on PyPI
+    # Extract "Available versions:" line, split by comma, exact match
+    pip index versions "${PROJECT_NAME}" 2>/dev/null \
+        | grep "Available versions:" | sed 's/Available versions: //' \
+        | tr ',' '\n' | sed 's/[[:space:]]//g' \
+        | grep -xF "${VERSION}" > /dev/null 2>&1 && return 0 || return 1
 }
 
 check_release_exists() {
@@ -207,8 +210,7 @@ step2_check_status() {
     
     # Check PyPI (optional, may fail if not installed)
     if command -v pip &> /dev/null; then
-        # Use grep -w for exact word match to avoid partial matches like "0.13.0-dev"
-        if pip index versions "${PROJECT_NAME}" 2>/dev/null | grep -w "${VERSION}" > /dev/null 2>&1; then
+        if pip index versions "${PROJECT_NAME}" 2>/dev/null | grep "Available versions:" | sed 's/Available versions: //' | tr ',' '\n' | sed 's/[[:space:]]//g' | grep -xF "${VERSION}" > /dev/null 2>&1; then
             STATUS_PYPI="${GREEN}✅${NC}"
             echo -e "  PyPI Upload:      ${STATUS_PYPI} Version ${VERSION} found on PyPI"
         else
@@ -650,9 +652,7 @@ step7_upload_pypi() {
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     
     if command -v pip &> /dev/null; then
-        # Use pip index versions and extract exact version match
-        # grep -w ensures word boundary, preventing partial matches like "0.13.0-dev"
-        if pip index versions "${PROJECT_NAME}" 2>/dev/null | grep -w "${VERSION}" > /dev/null 2>&1; then
+        if pip index versions "${PROJECT_NAME}" 2>/dev/null | grep "Available versions:" | sed 's/Available versions: //' | tr ',' '\n' | sed 's/[[:space:]]//g' | grep -xF "${VERSION}" > /dev/null 2>&1; then
             echo -e "${GREEN}✅ Version ${VERSION} already exists on PyPI${NC}"
             if ! ask_yn "Upload anyway? (will fail if version exists)" "n"; then
                 SKIP_PYPI=true
@@ -721,7 +721,7 @@ step_summary() {
         echo -e "  ${YELLOW}⚠️${NC}  Package: Not built"
     fi
     
-    if command -v pip &> /dev/null && pip index versions "${PROJECT_NAME}" 2>/dev/null | grep -w "${VERSION}" > /dev/null 2>&1; then
+    if command -v pip &> /dev/null && pip index versions "${PROJECT_NAME}" 2>/dev/null | grep "Available versions:" | sed 's/Available versions: //' | tr ',' '\n' | sed 's/[[:space:]]//g' | grep -xF "${VERSION}" > /dev/null 2>&1; then
         echo -e "  ${GREEN}✅${NC} PyPI: https://pypi.org/project/${PROJECT_NAME}/${VERSION}/"
     else
         echo -e "  ${YELLOW}⚠️${NC}  PyPI: Not uploaded yet"
