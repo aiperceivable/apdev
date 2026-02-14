@@ -1,0 +1,14 @@
+- id: check-chars
+  name: apdev check-chars
+  description: Validate files contain only allowed characters (ASCII + emoji + technical symbols)
+  entry: apdev check-chars
+  language: python
+  types_or: [text, python]
+
+- id: check-imports
+  name: apdev check-imports
+  description: Detect circular imports in a Python package
+  entry: apdev check-imports
+  language: python
+  pass_filenames: false
+  always_run: true
