@@ -4,7 +4,7 @@
 # Example: ./release.sh 0.2.0
 #
 # Auto-detects project name from pyproject.toml and GitHub repo from git remote.
-# Override with environment variables: PROJECT_NAME, GITHUB_REPO
+# Override with environment variables: PROJECT_NAME, PACKAGE_NAME, GITHUB_REPO
 
 # Note: set -e is disabled to allow step-by-step execution
 # Individual steps will handle their own error handling
@@ -25,6 +25,11 @@ if [ -z "$PROJECT_NAME" ]; then
         echo -e "${YELLOW}Set PROJECT_NAME environment variable or add 'name' to pyproject.toml${NC}"
         exit 1
     fi
+fi
+
+# Determine Python package (import) name
+if [ -z "$PACKAGE_NAME" ]; then
+    PACKAGE_NAME="${PROJECT_NAME//-/_}"
 fi
 
 # Auto-detect GitHub repo from git remote (unless set via env)
@@ -169,7 +174,7 @@ step1_version_verification() {
     INIT_VERSION=$(grep -E '^__version__ = ' src/${PROJECT_NAME}/__init__.py | sed 's/__version__ = "\(.*\)"/\1/')
     
     echo -e "  pyproject.toml:    ${CYAN}${PYPROJECT_VERSION}${NC}"
-    echo -e "  __init__.py:       ${CYAN}${INIT_VERSION}${NC}"
+        echo -e "  __init__.py:       ${CYAN}${INIT_VERSION}${NC}"
     echo -e "  Script version:    ${CYAN}${VERSION}${NC}"
     
     if [ "$PYPROJECT_VERSION" != "$VERSION" ] || [ "$INIT_VERSION" != "$VERSION" ]; then
