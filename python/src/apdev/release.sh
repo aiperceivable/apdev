@@ -171,10 +171,10 @@ step1_version_verification() {
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     
     PYPROJECT_VERSION=$(grep -E '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
-    INIT_VERSION=$(grep -E '^__version__ = ' src/${PROJECT_NAME}/__init__.py | sed 's/__version__ = "\(.*\)"/\1/')
+    INIT_VERSION=$(grep -E '^__version__ = ' src/${PACKAGE_NAME}/__init__.py | sed 's/__version__ = "\(.*\)"/\1/')
     
     echo -e "  pyproject.toml:    ${CYAN}${PYPROJECT_VERSION}${NC}"
-        echo -e "  __init__.py:       ${CYAN}${INIT_VERSION}${NC}"
+    echo -e "  __init__.py:       ${CYAN}${INIT_VERSION}${NC}"
     echo -e "  Script version:    ${CYAN}${VERSION}${NC}"
     
     if [ "$PYPROJECT_VERSION" != "$VERSION" ] || [ "$INIT_VERSION" != "$VERSION" ]; then

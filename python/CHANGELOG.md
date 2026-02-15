@@ -6,11 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## [0.1.4] - 2026-02-15
+
+### Fixed
+
+- Fix release script version check to use `PACKAGE_NAME` when reading __init__.py
+
 ## [0.1.3] - 2026-02-15
 
 ### Fixed
 
-- Fix release script version check to use Python package import name derived from project name (hyphen to underscore)
+- Add `PACKAGE_NAME` default (project name with hyphens converted to underscores) for release script
 
 
 ## [0.1.2] - 2026-02-14
