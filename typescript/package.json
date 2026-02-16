@@ -1,6 +1,6 @@
 {
-  "name": "@aipartnerup/apdev",
-  "version": "0.1.1",
+  "name": "apdev",
+  "version": "0.1.0",
   "description": "Shared development tools for TypeScript/JavaScript projects - character validation, circular import detection, and more",
   "type": "module",
   "main": "./dist/index.cjs",
