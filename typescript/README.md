@@ -1,13 +1,13 @@
-# @aipartnerup/apdev
+# apdev
 
 Shared development tools for TypeScript/JavaScript projects - character validation, circular import detection, and more.
 
 ## Installation
 
 ```bash
-pnpm add -D @aipartnerup/apdev
+pnpm add -D apdev
 # or
-npm install --save-dev @aipartnerup/apdev
+npm install --save-dev apdev
 ```
 
 ## Available Tools
@@ -77,7 +77,7 @@ import {
   checkPaths,
   checkCircularImports,
   loadConfig,
-} from "@aipartnerup/apdev";
+} from "apdev";
 
 // Check a single character
 isAllowedChar("A"); // true

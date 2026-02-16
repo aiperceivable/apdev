@@ -1,5 +1,5 @@
 /**
- * @aipartnerup/apdev - Shared development tools for TypeScript/JavaScript projects.
+ * apdev - Shared development tools for TypeScript/JavaScript projects.
  */
 
 export { isAllowedChar, checkFile, checkPaths } from "./check-chars.js";
