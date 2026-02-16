@@ -249,6 +249,13 @@ step4_build_package() {
     fi
 
     if [ "$SKIP_BUILD" = false ]; then
+        if [ ! -d "node_modules" ]; then
+            echo -e "${YELLOW}Installing dependencies...${NC}"
+            if ! pnpm install; then
+                echo -e "${RED}Dependency installation failed${NC}"
+                return 1
+            fi
+        fi
         echo -e "${YELLOW}Building package...${NC}"
         if ! pnpm build; then
             echo -e "${RED}Build failed${NC}"
