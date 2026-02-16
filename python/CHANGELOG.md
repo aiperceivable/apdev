@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## [0.1.5] - 2026-02-16
+
+### Changed
+
+- Use language-prefixed git tags (`python/v0.1.5`) to support monorepo with independent package versions
+- URL-encode tag in GitHub API calls to handle `/` in tag names
+
 ## [0.1.4] - 2026-02-15
 
 ### Fixed
