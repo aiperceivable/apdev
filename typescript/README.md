@@ -5,9 +5,9 @@ Shared development tools for TypeScript/JavaScript projects - character validati
 ## Installation
 
 ```bash
-pnpm add -D apdev
+pnpm add -D apdev-js
 # or
-npm install --save-dev apdev
+npm install --save-dev apdev-js
 ```
 
 ## Available Tools
@@ -77,7 +77,7 @@ import {
   checkPaths,
   checkCircularImports,
   loadConfig,
-} from "apdev";
+} from "apdev-js";
 
 // Check a single character
 isAllowedChar("A"); // true
