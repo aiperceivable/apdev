@@ -26,6 +26,7 @@ htmlcov/
 
 # TypeScript (future)
 node_modules/
+dist/
 
 # Go (future)
 bin/

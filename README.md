@@ -7,7 +7,7 @@ Shared development tools for the [aipartnerup](https://github.com/aipartnerup) e
 | Language | Package | Status |
 | -------- | ------- | ------ |
 | Python   | [`apdev`](python/) | Beta |
-| TypeScript | `@aipartnerup/apdev` | Planned |
+| TypeScript | [`@aipartnerup/apdev`](typescript/) | Beta |
 | Go       | `github.com/aipartnerup/apdev/go` | Planned |
 
 ## Available Tools

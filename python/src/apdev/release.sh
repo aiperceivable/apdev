@@ -56,7 +56,8 @@ else
     VERSION="$1"
 fi
 
-TAG="v${VERSION}"
+TAG="python/v${VERSION}"
+TAG_URL_ENCODED="${TAG//\//%2F}"
 
 echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
 echo -e "${CYAN}║  ${PROJECT_NAME} Release Script v${VERSION}${NC}"
@@ -532,7 +533,7 @@ step6_5_create_github_release() {
         if [ "$USE_API" = true ] && [ -n "$GITHUB_TOKEN" ]; then
             # Check via API
             if curl -s -H "Authorization: token ${GITHUB_TOKEN}" \
-                "https://api.github.com/repos/${GITHUB_REPO}/releases/tags/${TAG}" \
+                "https://api.github.com/repos/${GITHUB_REPO}/releases/tags/${TAG_URL_ENCODED}" \
                 | grep -q '"id"'; then
                 echo -e "${GREEN}✅ Release ${TAG} already exists${NC}"
                 if ask_yn "Update existing release?" "n"; then
