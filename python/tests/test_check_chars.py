@@ -2,7 +2,12 @@
 
 from pathlib import Path
 
-from apdev.check_chars import check_file, check_paths, is_allowed_char
+from apdev.check_chars import (
+    check_file,
+    check_paths,
+    is_allowed_char,
+    is_dangerous_char,
+)
 
 
 def test_ascii_chars_allowed() -> None:
@@ -78,3 +83,114 @@ def test_check_paths_returns_exit_code(tmp_path: Path) -> None:
     bad = tmp_path / "bad.py"
     bad.write_text("x = '\u4e2d'\n", encoding="utf-8")
     assert check_paths([bad]) == 1
+
+
+# ---------------------------------------------------------------------------
+# Dangerous character tests
+# ---------------------------------------------------------------------------
+
+def test_is_dangerous_char() -> None:
+    """is_dangerous_char identifies all 15 dangerous codepoints."""
+    # Bidi controls
+    assert is_dangerous_char("\u202a")
+    assert is_dangerous_char("\u202e")
+    assert is_dangerous_char("\u2066")
+    assert is_dangerous_char("\u2069")
+    # Zero-width
+    assert is_dangerous_char("\u200b")
+    assert is_dangerous_char("\u200d")
+    assert is_dangerous_char("\u200e")
+    assert is_dangerous_char("\u2060")
+    # Normal chars should not be dangerous
+    assert not is_dangerous_char("a")
+    assert not is_dangerous_char("\u2014")  # em dash (General Punctuation, safe)
+
+
+def test_dangerous_bidi_in_python_code_detected(tmp_path: Path) -> None:
+    """Bidi override character in Python code should be flagged."""
+    f = tmp_path / "trojan.py"
+    # U+202E RIGHT-TO-LEFT OVERRIDE in code
+    f.write_text("x = '\u202e'\n", encoding="utf-8")
+    problems = check_file(f)
+    assert len(problems) == 1
+    assert "Dangerous character in code" in problems[0]
+    assert "U+202E" in problems[0]
+
+
+def test_dangerous_bidi_in_python_comment_allowed(tmp_path: Path) -> None:
+    """Bidi character inside a Python # comment should be allowed."""
+    f = tmp_path / "safe.py"
+    f.write_text("x = 1  # test \u202e bidi\n", encoding="utf-8")
+    problems = check_file(f)
+    assert problems == []
+
+
+def test_zero_width_in_python_code_detected(tmp_path: Path) -> None:
+    """Zero-width space in Python code should be flagged."""
+    f = tmp_path / "zw.py"
+    f.write_text("x\u200b= 1\n", encoding="utf-8")
+    problems = check_file(f)
+    assert len(problems) == 1
+    assert "ZERO WIDTH SPACE" in problems[0]
+
+
+def test_dangerous_char_in_python_string_detected(tmp_path: Path) -> None:
+    """Dangerous char inside a string literal is still code, not a comment."""
+    f = tmp_path / "str.py"
+    f.write_text("s = 'hello\u200bworld'\n", encoding="utf-8")
+    problems = check_file(f)
+    assert len(problems) == 1
+    assert "Dangerous character in code" in problems[0]
+
+
+def test_dangerous_bidi_in_js_line_comment_allowed(tmp_path: Path) -> None:
+    """Bidi char inside a JS // comment should be allowed."""
+    f = tmp_path / "safe.js"
+    f.write_text("let x = 1; // test \u202e bidi\n", encoding="utf-8")
+    problems = check_file(f)
+    assert problems == []
+
+
+def test_dangerous_bidi_in_js_block_comment_allowed(tmp_path: Path) -> None:
+    """Bidi char inside a JS /* */ comment should be allowed."""
+    f = tmp_path / "safe.ts"
+    f.write_text("/* \u202e bidi */\nlet x = 1;\n", encoding="utf-8")
+    problems = check_file(f)
+    assert problems == []
+
+
+def test_dangerous_bidi_in_js_code_detected(tmp_path: Path) -> None:
+    """Bidi char in JS code should be flagged."""
+    f = tmp_path / "trojan.ts"
+    f.write_text("let x = '\u202e';\n", encoding="utf-8")
+    problems = check_file(f)
+    assert len(problems) == 1
+    assert "Dangerous character in code" in problems[0]
+
+
+def test_cjk_still_rejected_after_dangerous_check(tmp_path: Path) -> None:
+    """CJK characters should still be caught as illegal (not dangerous)."""
+    f = tmp_path / "cjk.py"
+    f.write_text("x = '\u4e2d'\n", encoding="utf-8")
+    problems = check_file(f)
+    assert len(problems) == 1
+    assert "Illegal character" in problems[0]
+
+
+def test_hash_in_python_string_not_treated_as_comment(tmp_path: Path) -> None:
+    """# inside a string should not start a comment region."""
+    f = tmp_path / "hash_str.py"
+    # The \u202e is after the string, in code – should be flagged
+    f.write_text("s = '# not a comment'\u202e\n", encoding="utf-8")
+    problems = check_file(f)
+    assert len(problems) == 1
+    assert "Dangerous character in code" in problems[0]
+
+
+def test_unknown_extension_treats_all_as_code(tmp_path: Path) -> None:
+    """For unknown extensions, all chars are treated as code (conservative)."""
+    f = tmp_path / "file.txt"
+    f.write_text("hello \u202e world\n", encoding="utf-8")
+    problems = check_file(f)
+    assert len(problems) == 1
+    assert "Dangerous character in code" in problems[0]

@@ -2,6 +2,9 @@
 
 Checks that files contain only allowed characters: ASCII, common emoji,
 and standard technical symbols (arrows, box-drawing, math operators, etc.).
+
+Additionally flags dangerous invisible/bidi characters in code regions
+(Trojan Source - CVE-2021-42574) while allowing them in comments.
 """
 
 from __future__ import annotations
@@ -34,6 +37,32 @@ EXTRA_ALLOWED_RANGES: list[tuple[int, int]] = [
 
 _ALL_RANGES = EMOJI_RANGES + EXTRA_ALLOWED_RANGES
 
+# Dangerous codepoints that pass the allowed-range check but should be
+# flagged when they appear in code (not comments).  These are within the
+# General Punctuation range (0x2000-0x206F) which is broadly allowed.
+DANGEROUS_CODEPOINTS: dict[int, str] = {
+    # Bidi control characters (Trojan Source - CVE-2021-42574)
+    0x202A: "LEFT-TO-RIGHT EMBEDDING",
+    0x202B: "RIGHT-TO-LEFT EMBEDDING",
+    0x202C: "POP DIRECTIONAL FORMATTING",
+    0x202D: "LEFT-TO-RIGHT OVERRIDE",
+    0x202E: "RIGHT-TO-LEFT OVERRIDE",
+    0x2066: "LEFT-TO-RIGHT ISOLATE",
+    0x2067: "RIGHT-TO-LEFT ISOLATE",
+    0x2068: "FIRST STRONG ISOLATE",
+    0x2069: "POP DIRECTIONAL ISOLATE",
+    # Zero-width characters
+    0x200B: "ZERO WIDTH SPACE",
+    0x200C: "ZERO WIDTH NON-JOINER",
+    0x200D: "ZERO WIDTH JOINER",
+    0x200E: "LEFT-TO-RIGHT MARK",
+    0x200F: "RIGHT-TO-LEFT MARK",
+    0x2060: "WORD JOINER",
+}
+
+_PYTHON_SUFFIXES = {".py"}
+_JS_SUFFIXES = {".js", ".ts", ".tsx", ".jsx", ".mjs", ".cjs"}
+
 
 def is_allowed_char(c: str) -> bool:
     """Return True if the character is in the allowed set."""
@@ -46,6 +75,127 @@ def is_allowed_char(c: str) -> bool:
     return False
 
 
+def is_dangerous_char(c: str) -> bool:
+    """Return True if the character is a dangerous invisible/bidi codepoint."""
+    return ord(c) in DANGEROUS_CODEPOINTS
+
+
+def _compute_comment_mask(content: str, suffix: str) -> set[int]:
+    """Return the set of character indices that are within comments.
+
+    Uses a simple state machine that tracks string literals to avoid
+    treating ``#`` / ``//`` inside strings as comment starts.
+    """
+    if suffix in _PYTHON_SUFFIXES:
+        return _compute_comment_mask_python(content)
+    if suffix in _JS_SUFFIXES:
+        return _compute_comment_mask_js(content)
+    return set()
+
+
+def _compute_comment_mask_python(content: str) -> set[int]:
+    mask: set[int] = set()
+    i = 0
+    n = len(content)
+
+    while i < n:
+        # Triple-quoted strings (""" or ''')
+        if i + 2 < n and content[i : i + 3] in ('"""', "'''"):
+            quote = content[i : i + 3]
+            i += 3
+            while i < n:
+                if content[i] == "\\" and i + 1 < n:
+                    i += 2
+                    continue
+                if i + 2 < n and content[i : i + 3] == quote:
+                    i += 3
+                    break
+                i += 1
+            continue
+
+        # Single / double quoted strings
+        if content[i] in ('"', "'"):
+            quote_char = content[i]
+            i += 1
+            while i < n and content[i] != "\n":
+                if content[i] == "\\" and i + 1 < n:
+                    i += 2
+                    continue
+                if content[i] == quote_char:
+                    i += 1
+                    break
+                i += 1
+            continue
+
+        # Line comment
+        if content[i] == "#":
+            while i < n and content[i] != "\n":
+                mask.add(i)
+                i += 1
+            continue
+
+        i += 1
+
+    return mask
+
+
+def _compute_comment_mask_js(content: str) -> set[int]:
+    mask: set[int] = set()
+    i = 0
+    n = len(content)
+
+    while i < n:
+        # Template literal
+        if content[i] == "`":
+            i += 1
+            while i < n:
+                if content[i] == "\\" and i + 1 < n:
+                    i += 2
+                    continue
+                if content[i] == "`":
+                    i += 1
+                    break
+                i += 1
+            continue
+
+        # Single / double quoted strings
+        if content[i] in ('"', "'"):
+            quote_char = content[i]
+            i += 1
+            while i < n and content[i] != "\n":
+                if content[i] == "\\" and i + 1 < n:
+                    i += 2
+                    continue
+                if content[i] == quote_char:
+                    i += 1
+                    break
+                i += 1
+            continue
+
+        # Line comment
+        if i + 1 < n and content[i : i + 2] == "//":
+            while i < n and content[i] != "\n":
+                mask.add(i)
+                i += 1
+            continue
+
+        # Block comment
+        if i + 1 < n and content[i : i + 2] == "/*":
+            while i < n:
+                if i + 1 < n and content[i : i + 2] == "*/":
+                    mask.add(i)
+                    mask.add(i + 1)
+                    i += 2
+                    break
+                mask.add(i)
+                i += 1
+            continue
+
+        i += 1
+
+    return mask
+
+
 def check_file(path: Path, *, max_problems: int = 5) -> list[str]:
     """Check a single file for illegal characters.
 
@@ -54,13 +204,24 @@ def check_file(path: Path, *, max_problems: int = 5) -> list[str]:
     problems: list[str] = []
     try:
         content = path.read_text(encoding="utf-8")
-        for i, char in enumerate(content, 1):
-            if not is_allowed_char(char):
+        suffix = path.suffix.lower()
+        comment_mask = _compute_comment_mask(content, suffix)
+        for i, char in enumerate(content):
+            if is_dangerous_char(char):
+                if i not in comment_mask:
+                    code = ord(char)
+                    name = DANGEROUS_CODEPOINTS[code]
+                    problems.append(
+                        f"Dangerous character in code at position {i + 1}: "
+                        f"U+{code:04X} ({name})"
+                    )
+            elif not is_allowed_char(char):
                 problems.append(
-                    f"Illegal character at position {i}: {char!r} (U+{ord(char):04X})"
+                    f"Illegal character at position {i + 1}: "
+                    f"{char!r} (U+{ord(char):04X})"
                 )
-                if len(problems) >= max_problems:
-                    break
+            if len(problems) >= max_problems:
+                break
     except Exception as e:
         problems.append(f"Failed to read file: {e}")
     return problems

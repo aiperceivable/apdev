@@ -2,7 +2,12 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, it, expect } from "vitest";
-import { isAllowedChar, checkFile, checkPaths } from "../src/check-chars.js";
+import {
+  isAllowedChar,
+  isDangerousChar,
+  checkFile,
+  checkPaths,
+} from "../src/check-chars.js";
 
 function makeTmpDir(): string {
   return mkdtempSync(join(tmpdir(), "apdev-test-"));
@@ -39,6 +44,27 @@ describe("isAllowedChar", () => {
   });
 });
 
+describe("isDangerousChar", () => {
+  it("identifies bidi control characters as dangerous", () => {
+    expect(isDangerousChar("\u202A")).toBe(true); // LRE
+    expect(isDangerousChar("\u202E")).toBe(true); // RLO
+    expect(isDangerousChar("\u2066")).toBe(true); // LRI
+    expect(isDangerousChar("\u2069")).toBe(true); // PDI
+  });
+
+  it("identifies zero-width characters as dangerous", () => {
+    expect(isDangerousChar("\u200B")).toBe(true); // ZWSP
+    expect(isDangerousChar("\u200D")).toBe(true); // ZWJ
+    expect(isDangerousChar("\u200E")).toBe(true); // LRM
+    expect(isDangerousChar("\u2060")).toBe(true); // WJ
+  });
+
+  it("does not flag normal characters", () => {
+    expect(isDangerousChar("a")).toBe(false);
+    expect(isDangerousChar("\u2014")).toBe(false); // em dash
+  });
+});
+
 describe("checkFile", () => {
   it("returns empty for clean ASCII file", () => {
     const dir = makeTmpDir();
@@ -69,6 +95,85 @@ describe("checkFile", () => {
     const problems = checkFile(join(dir, "nope.ts"));
     expect(problems).toHaveLength(1);
     expect(problems[0]).toContain("Failed to read");
+  });
+
+  // --- Dangerous character tests ---
+
+  it("detects bidi override in TS code", () => {
+    const dir = makeTmpDir();
+    const f = join(dir, "trojan.ts");
+    writeFileSync(f, "let x = '\u202E';\n", "utf-8");
+    const problems = checkFile(f);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("Dangerous character in code");
+    expect(problems[0]).toContain("U+202E");
+  });
+
+  it("allows bidi char in TS line comment", () => {
+    const dir = makeTmpDir();
+    const f = join(dir, "safe.ts");
+    writeFileSync(f, "let x = 1; // test \u202E bidi\n", "utf-8");
+    expect(checkFile(f)).toEqual([]);
+  });
+
+  it("allows bidi char in TS block comment", () => {
+    const dir = makeTmpDir();
+    const f = join(dir, "safe2.ts");
+    writeFileSync(f, "/* \u202E bidi */\nlet x = 1;\n", "utf-8");
+    expect(checkFile(f)).toEqual([]);
+  });
+
+  it("detects zero-width space in JS code", () => {
+    const dir = makeTmpDir();
+    const f = join(dir, "zw.js");
+    writeFileSync(f, "x\u200B= 1;\n", "utf-8");
+    const problems = checkFile(f);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("ZERO WIDTH SPACE");
+  });
+
+  it("detects dangerous char in string literal (not a comment)", () => {
+    const dir = makeTmpDir();
+    const f = join(dir, "str.ts");
+    writeFileSync(f, "const s = 'hello\u200Bworld';\n", "utf-8");
+    const problems = checkFile(f);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("Dangerous character in code");
+  });
+
+  it("allows bidi char in Python # comment via .py extension", () => {
+    const dir = makeTmpDir();
+    const f = join(dir, "safe.py");
+    writeFileSync(f, "x = 1  # test \u202E bidi\n", "utf-8");
+    expect(checkFile(f)).toEqual([]);
+  });
+
+  it("does not treat # in JS string as comment", () => {
+    const dir = makeTmpDir();
+    const f = join(dir, "hash.js");
+    // \u202E after the string, in code
+    writeFileSync(f, "let s = '# not a comment';\u202E\n", "utf-8");
+    const problems = checkFile(f);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("Dangerous character in code");
+  });
+
+  it("treats all as code for unknown extensions (conservative)", () => {
+    const dir = makeTmpDir();
+    const f = join(dir, "file.txt");
+    writeFileSync(f, "hello \u202E world\n", "utf-8");
+    const problems = checkFile(f);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("Dangerous character in code");
+  });
+
+  it("CJK still rejected as illegal after dangerous check", () => {
+    const dir = makeTmpDir();
+    const f = join(dir, "cjk.ts");
+    writeFileSync(f, "const x = '\u4E2D';\n", "utf-8");
+    const problems = checkFile(f);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("Illegal character");
   });
 });
 

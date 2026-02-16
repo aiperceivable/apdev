@@ -5,6 +5,7 @@ import { describe, it, expect } from "vitest";
 import {
   fileToModule,
   extractImports,
+  resolveImports,
   buildDependencyGraph,
   findCycles,
 } from "../src/check-imports.js";
@@ -55,6 +56,40 @@ describe("extractImports", () => {
   });
 });
 
+describe("resolveImports", () => {
+  // --- Relative import resolution tests ---
+
+  it("resolves ./b from mypkg.a to mypkg.b", () => {
+    const raw = new Set(["./b"]);
+    const resolved = resolveImports(raw, "mypkg", "mypkg.a", false);
+    expect(resolved.has("mypkg.b")).toBe(true);
+  });
+
+  it("resolves ../c from mypkg.sub.a to mypkg.c", () => {
+    const raw = new Set(["../c"]);
+    const resolved = resolveImports(raw, "mypkg", "mypkg.sub.a", false);
+    expect(resolved.has("mypkg.c")).toBe(true);
+  });
+
+  it("resolves ./b from index (package) mypkg to mypkg.b", () => {
+    const raw = new Set(["./b"]);
+    const resolved = resolveImports(raw, "mypkg", "mypkg", true);
+    expect(resolved.has("mypkg.b")).toBe(true);
+  });
+
+  it("ignores relative imports when no currentModule", () => {
+    const raw = new Set(["./b"]);
+    const resolved = resolveImports(raw, "mypkg");
+    expect(resolved.size).toBe(0);
+  });
+
+  it("filters out relative imports outside base package", () => {
+    const raw = new Set(["../../outside"]);
+    const resolved = resolveImports(raw, "mypkg", "mypkg.sub.a", false);
+    expect(resolved.size).toBe(0);
+  });
+});
+
 describe("buildDependencyGraph", () => {
   it("builds graph with no circular imports", () => {
     const dir = makeTmpDir();
@@ -82,6 +117,58 @@ describe("buildDependencyGraph", () => {
     expect(cycles).toHaveLength(1);
     const cycleModules = new Set(cycles[0].slice(0, -1));
     expect(cycleModules).toEqual(new Set(["mypkg.a", "mypkg.b"]));
+  });
+
+  // --- Relative import tests ---
+
+  it("detects circular relative imports (./)", () => {
+    const dir = makeTmpDir();
+    const pkg = join(dir, "mypkg");
+    mkdirSync(pkg);
+    writeFileSync(join(pkg, "index.ts"), "");
+    writeFileSync(join(pkg, "a.ts"), "import { something } from './b';\n");
+    writeFileSync(join(pkg, "b.ts"), "import { something } from './a';\n");
+
+    const graph = buildDependencyGraph(dir, "mypkg");
+    expect(graph.get("mypkg.a")?.has("mypkg.b")).toBe(true);
+    expect(graph.get("mypkg.b")?.has("mypkg.a")).toBe(true);
+
+    const cycles = findCycles(graph);
+    expect(cycles).toHaveLength(1);
+    const cycleModules = new Set(cycles[0].slice(0, -1));
+    expect(cycleModules).toEqual(new Set(["mypkg.a", "mypkg.b"]));
+  });
+
+  it("resolves relative imports without cycle", () => {
+    const dir = makeTmpDir();
+    const pkg = join(dir, "mypkg");
+    mkdirSync(pkg);
+    writeFileSync(join(pkg, "index.ts"), "");
+    writeFileSync(join(pkg, "a.ts"), "import { something } from './b';\n");
+    writeFileSync(join(pkg, "b.ts"), "import os from 'os';\n");
+
+    const graph = buildDependencyGraph(dir, "mypkg");
+    expect(graph.get("mypkg.a")?.has("mypkg.b")).toBe(true);
+    expect(findCycles(graph)).toEqual([]);
+  });
+
+  it("detects relative import cycles in sub-packages", () => {
+    const dir = makeTmpDir();
+    const pkg = join(dir, "mypkg");
+    mkdirSync(pkg);
+    writeFileSync(join(pkg, "index.ts"), "");
+    const sub = join(pkg, "sub");
+    mkdirSync(sub);
+    writeFileSync(join(sub, "index.ts"), "");
+    writeFileSync(join(sub, "a.ts"), "import { something } from './b';\n");
+    writeFileSync(join(sub, "b.ts"), "import { something } from './a';\n");
+
+    const graph = buildDependencyGraph(dir, "mypkg");
+    expect(graph.get("mypkg.sub.a")?.has("mypkg.sub.b")).toBe(true);
+    expect(graph.get("mypkg.sub.b")?.has("mypkg.sub.a")).toBe(true);
+
+    const cycles = findCycles(graph);
+    expect(cycles).toHaveLength(1);
   });
 });
 

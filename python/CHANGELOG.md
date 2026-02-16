@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## [0.1.6] - 2026-02-16
+
+### Added
+
+- `check-chars`: Dangerous character blacklist (bidi controls + zero-width chars, CVE-2021-42574) with comment-aware detection — flags in code, allows in comments
+- `check-chars`: `is_dangerous_char()` public function and `DANGEROUS_CODEPOINTS` constant
+- `check-chars`: Comment region detection state machine for Python (`#`) and JS/TS (`//`, `/* */`) with string literal tracking
+- `check-imports`: Relative import support — `from .foo import x` and `from . import foo` now resolve correctly for cycle detection
+
+### Fixed
+
+- `check-imports`: `ImportAnalyzer` now handles `node.level > 0` (relative imports) by resolving against `current_module` with correct package vs module distinction
+
 ## [0.1.5] - 2026-02-16
 
 ### Changed

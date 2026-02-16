@@ -18,6 +18,15 @@ const SUPPORTED_EXTENSIONS = new Set([
   ".cjs",
 ]);
 
+const INDEX_BASENAMES = new Set([
+  "index.ts",
+  "index.tsx",
+  "index.js",
+  "index.jsx",
+  "index.mjs",
+  "index.cjs",
+]);
+
 /** Convert a file path to a dotted module name (relative to srcDir). */
 export function fileToModule(filePath: string, srcDir: string): string {
   const rel = relative(srcDir, filePath);
@@ -81,14 +90,47 @@ export function extractImports(source: string, fileName: string): Set<string> {
   return imports;
 }
 
-/** Filter imports to those within the base package. */
+/** Filter imports to those within the base package, resolving relative paths. */
 export function resolveImports(
   rawImports: Set<string>,
   basePackage: string,
+  currentModule?: string,
+  isPackage?: boolean,
 ): Set<string> {
   const resolved = new Set<string>();
   for (const imp of rawImports) {
-    if (imp === basePackage || imp.startsWith(basePackage + "/")) {
+    if (imp.startsWith("./") || imp.startsWith("../")) {
+      // Relative import – resolve against current module.
+      if (!currentModule) continue;
+      const moduleParts = currentModule.split(".");
+
+      // Get the "directory" of the current module.
+      let dirParts: string[];
+      if (isPackage) {
+        dirParts = [...moduleParts];
+      } else {
+        dirParts = moduleParts.slice(0, -1);
+      }
+
+      // Walk the relative path segments.
+      const segments = imp.split("/");
+      for (const seg of segments) {
+        if (seg === ".") continue;
+        if (seg === "..") {
+          dirParts.pop();
+        } else {
+          dirParts.push(seg);
+        }
+      }
+
+      const resolvedModule = dirParts.join(".");
+      if (
+        resolvedModule === basePackage ||
+        resolvedModule.startsWith(basePackage + ".")
+      ) {
+        resolved.add(resolvedModule);
+      }
+    } else if (imp === basePackage || imp.startsWith(basePackage + "/")) {
       // Convert path-style to dot-style: "pkg/sub/mod" -> "pkg.sub.mod"
       resolved.add(imp.replaceAll("/", "."));
     }
@@ -148,7 +190,8 @@ export function buildDependencyGraph(
       continue;
     }
 
-    const deps = resolveImports(rawImports, basePackage);
+    const isPackage = INDEX_BASENAMES.has(basename(file));
+    const deps = resolveImports(rawImports, basePackage, moduleName, isPackage);
     deps.delete(moduleName);
     graph.set(moduleName, deps);
   }

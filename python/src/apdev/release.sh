@@ -1,13 +1,26 @@
 #!/bin/bash
 # Interactive release script for Python projects
-# Usage: ./release.sh [version]
+# Usage: ./release.sh [--yes|-y] [version]
 # Example: ./release.sh 0.2.0
+#         ./release.sh --yes          # silent mode, auto-accept defaults
+#         ./release.sh --yes 0.2.0    # silent mode with specific version
 #
 # Auto-detects project name from pyproject.toml and GitHub repo from git remote.
 # Override with environment variables: PROJECT_NAME, PACKAGE_NAME, GITHUB_REPO
 
 # Note: set -e is disabled to allow step-by-step execution
 # Individual steps will handle their own error handling
+
+# Silent mode flag (--yes or -y to auto-accept all defaults)
+SILENT=false
+POSITIONAL_ARGS=()
+for arg in "$@"; do
+    case "$arg" in
+        --yes|-y) SILENT=true ;;
+        *) POSITIONAL_ARGS+=("$arg") ;;
+    esac
+done
+set -- "${POSITIONAL_ARGS[@]}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -98,13 +111,24 @@ ask_yn() {
     local prompt="$1"
     local default="$2"
     local answer
-    
+
+    # Silent mode: auto-accept default
+    if [ "$SILENT" = true ]; then
+        if [ "$default" = "y" ]; then
+            echo -e "${YELLOW}${prompt} [Y/n] y (auto)${NC}"
+            return 0
+        else
+            echo -e "${YELLOW}${prompt} [y/N] n (auto)${NC}"
+            return 1
+        fi
+    fi
+
     if [ "$default" = "y" ]; then
         prompt="${prompt} [Y/n]"
     else
         prompt="${prompt} [y/N]"
     fi
-    
+
     read -p "$(echo -e "${YELLOW}${prompt}${NC}") " answer
     answer=${answer:-$default}
     [[ $answer =~ ^[Yy]$ ]]
@@ -139,12 +163,19 @@ ask_menu() {
 # Function to show main menu with all steps
 # Returns selection via global variable MENU_SELECTION
 show_main_menu() {
+    # Silent mode: auto-select "all"
+    if [ "$SILENT" = true ]; then
+        echo -e "${CYAN}Silent mode: auto-selecting all steps${NC}"
+        MENU_SELECTION="all"
+        return
+    fi
+
     echo ""
     echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
     echo -e "${CYAN}║  Release Steps Selection                                  ║${NC}"
     echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    
+
     # Display menu options directly
     echo -e "${CYAN}Select a step to execute:${NC}"
     echo -e "  ${CYAN}all) Execute all steps (with interactive prompts)${NC}"
@@ -159,7 +190,7 @@ show_main_menu() {
     echo -e "  ${CYAN}9) Show Summary${NC}"
     echo -e "  ${CYAN}0) Exit${NC}"
     echo ""
-    
+
     # Read user input directly (not captured)
     read -p "$(echo -e "${YELLOW}Select option [all]:${NC} ") " MENU_SELECTION
     MENU_SELECTION=${MENU_SELECTION:-all}
@@ -763,19 +794,33 @@ while true; do
             echo -e "${CYAN}Executing all steps with interactive prompts...${NC}"
             echo ""
             
+            # Helper: run a step, abort in silent mode on failure
+            run_step() {
+                local step_name="$1"
+                shift
+                if ! "$@"; then
+                    if [ "$SILENT" = true ]; then
+                        echo -e "${RED}${step_name} failed. Aborting (silent mode).${NC}"
+                        exit 1
+                    else
+                        echo -e "${YELLOW}${step_name} failed, continuing...${NC}"
+                    fi
+                fi
+            }
+
             # First verify version (required)
             if ! step1_version_verification; then
                 echo -e "${RED}Version verification failed. Exiting.${NC}"
                 exit 1
             fi
-            
+
             step2_check_status
-            step3_clean_build || echo -e "${YELLOW}Step 3 failed, continuing...${NC}"
-            step4_build_package || echo -e "${YELLOW}Step 4 failed, continuing...${NC}"
-            step5_check_package || echo -e "${YELLOW}Step 5 failed, continuing...${NC}"
-            step6_git_tag || echo -e "${YELLOW}Step 6 failed, continuing...${NC}"
-            step6_5_create_github_release || echo -e "${YELLOW}Step 6.5 failed, continuing...${NC}"
-            step7_upload_pypi || echo -e "${YELLOW}Step 7 failed, continuing...${NC}"
+            run_step "Step 3" step3_clean_build
+            run_step "Step 4" step4_build_package
+            run_step "Step 5" step5_check_package
+            run_step "Step 6" step6_git_tag
+            run_step "Step 6.5" step6_5_create_github_release
+            run_step "Step 7" step7_upload_pypi
             step_summary
             break
             ;;

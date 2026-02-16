@@ -15,15 +15,46 @@ from pathlib import Path
 class ImportAnalyzer(ast.NodeVisitor):
     """Collect fully-qualified imports from a single Python file."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        current_module: str = "",
+        is_package: bool = False,
+    ) -> None:
         self.imports: set[str] = set()
+        self._current_module = current_module
+        self._is_package = is_package
 
     def visit_Import(self, node: ast.Import) -> None:
         for alias in node.names:
             self.imports.add(alias.name)
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
-        if node.module:
+        if node.level > 0 and self._current_module:
+            # Relative import – resolve against current module/package.
+            parts = self._current_module.split(".")
+            # For a package (__init__.py) the package is the module itself;
+            # for a regular module the package is the parent.
+            if self._is_package:
+                levels_to_strip = node.level - 1
+            else:
+                levels_to_strip = node.level
+
+            if levels_to_strip > 0 and levels_to_strip < len(parts):
+                base_parts = parts[:-levels_to_strip]
+            elif levels_to_strip == 0:
+                base_parts = list(parts)
+            else:
+                base_parts = []
+
+            if node.module:
+                resolved = ".".join(base_parts + node.module.split("."))
+                self.imports.add(resolved)
+            else:
+                # ``from . import foo, bar`` – each name is a sub-module.
+                for alias in node.names:
+                    resolved = ".".join(base_parts + [alias.name])
+                    self.imports.add(resolved)
+        elif node.module:
             self.imports.add(node.module)
 
 
@@ -70,7 +101,11 @@ def build_dependency_graph(
             print(f"Warning: could not parse {py_file}: {e}", file=sys.stderr)
             continue
 
-        analyzer = ImportAnalyzer()
+        is_package = py_file.name == "__init__.py"
+        analyzer = ImportAnalyzer(
+            current_module=module_name,
+            is_package=is_package,
+        )
         analyzer.visit(tree)
 
         deps = _resolve_imports(analyzer.imports, base_package)
