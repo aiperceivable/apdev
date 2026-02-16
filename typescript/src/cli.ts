@@ -74,8 +74,9 @@ export function buildProgram(): Command {
   program
     .command("release")
     .description("Interactive release automation (build, tag, GitHub release, npm publish)")
+    .option("--yes, -y", "Auto-accept all defaults (silent mode)")
     .argument("[version]", "Version to release (auto-detected from package.json if omitted)")
-    .action((version?: string) => {
+    .action((version?: string, opts?: { yes?: boolean }) => {
       const script = getReleaseScript();
       try {
         readFileSync(script);
@@ -85,6 +86,7 @@ export function buildProgram(): Command {
       }
 
       const args = ["bash", script];
+      if (opts?.yes) args.push("--yes");
       if (version) args.push(version);
 
       try {

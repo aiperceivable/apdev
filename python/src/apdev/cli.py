@@ -67,6 +67,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Interactive release automation (build, tag, GitHub release, PyPI upload)",
     )
     release_parser.add_argument(
+        "--yes", "-y",
+        action="store_true",
+        help="Auto-accept all defaults (silent mode)",
+    )
+    release_parser.add_argument(
         "version",
         nargs="?",
         help="Version to release (auto-detected from pyproject.toml if omitted)",
@@ -108,6 +113,8 @@ def main(argv: list[str] | None = None) -> int:
             print("Error: release.sh not found in package", file=sys.stderr)
             return 1
         cmd = ["bash", str(script)]
+        if args.yes:
+            cmd.append("--yes")
         if args.version:
             cmd.append(args.version)
         result = subprocess.run(cmd, env={**os.environ})
