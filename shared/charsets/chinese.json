@@ -1,0 +1,9 @@
+{
+  "name": "chinese",
+  "description": "Chinese: CJK Unified Ideographs, CJK Punctuation, Fullwidth Forms",
+  "extra_ranges": [
+    { "start": "0x3000", "end": "0x303F", "name": "CJK Symbols and Punctuation" },
+    { "start": "0x4E00", "end": "0x9FFF", "name": "CJK Unified Ideographs" },
+    { "start": "0xFF00", "end": "0xFFEF", "name": "Fullwidth Forms" }
+  ]
+}

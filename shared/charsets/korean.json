@@ -1,0 +1,11 @@
+{
+  "name": "korean",
+  "description": "Korean: Hangul Jamo, Hangul Syllables, CJK Unified Ideographs, CJK Punctuation, Fullwidth Forms",
+  "extra_ranges": [
+    { "start": "0x1100", "end": "0x11FF", "name": "Hangul Jamo" },
+    { "start": "0x3000", "end": "0x303F", "name": "CJK Symbols and Punctuation" },
+    { "start": "0x4E00", "end": "0x9FFF", "name": "CJK Unified Ideographs" },
+    { "start": "0xAC00", "end": "0xD7AF", "name": "Hangul Syllables" },
+    { "start": "0xFF00", "end": "0xFFEF", "name": "Fullwidth Forms" }
+  ]
+}
