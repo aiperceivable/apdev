@@ -43,7 +43,7 @@ dev = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-apdev = ["release.sh"]
+apdev = ["release.sh", "charsets/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

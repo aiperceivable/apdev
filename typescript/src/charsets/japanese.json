@@ -1,0 +1,11 @@
+{
+  "name": "japanese",
+  "description": "Japanese: Hiragana, Katakana, CJK Unified Ideographs, CJK Punctuation, Fullwidth Forms",
+  "extra_ranges": [
+    { "start": "0x3000", "end": "0x303F", "name": "CJK Symbols and Punctuation" },
+    { "start": "0x3040", "end": "0x309F", "name": "Hiragana" },
+    { "start": "0x30A0", "end": "0x30FF", "name": "Katakana" },
+    { "start": "0x4E00", "end": "0x9FFF", "name": "CJK Unified Ideographs" },
+    { "start": "0xFF00", "end": "0xFFEF", "name": "Fullwidth Forms" }
+  ]
+}

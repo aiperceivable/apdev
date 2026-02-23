@@ -18,7 +18,8 @@
   },
   "files": [
     "dist",
-    "release.sh"
+    "release.sh",
+    "src/charsets"
   ],
   "scripts": {
     "build": "tsup",
