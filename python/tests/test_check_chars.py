@@ -7,6 +7,8 @@ from apdev.check_chars import (
     check_paths,
     is_allowed_char,
     is_dangerous_char,
+    load_charset,
+    resolve_charsets,
 )
 
 
@@ -34,6 +36,20 @@ def test_arrow_chars_allowed() -> None:
     """Arrow characters should be allowed."""
     assert is_allowed_char("\u2192")  # rightwards arrow
     assert is_allowed_char("\u2190")  # leftwards arrow
+
+
+def test_block_elements_allowed() -> None:
+    """Block element characters used in progress bars should be allowed."""
+    chars = ["\u2580", "\u2584", "\u2588", "\u2591", "\u2592", "\u2593"]  # ▀ ▄ █ ░ ▒ ▓
+    for ch in chars:
+        assert is_allowed_char(ch), f"{ch!r} (U+{ord(ch):04X}) should be allowed"
+
+
+def test_braille_patterns_allowed() -> None:
+    """Braille pattern characters used in terminal graphics should be allowed."""
+    chars = ["\u2800", "\u2801", "\u28FF", "\u2840"]  # ⠀ ⠁ ⣿ ⡀
+    for ch in chars:
+        assert is_allowed_char(ch), f"{ch!r} (U+{ord(ch):04X}) should be allowed"
 
 
 def test_chinese_chars_rejected() -> None:
@@ -194,3 +210,68 @@ def test_unknown_extension_treats_all_as_code(tmp_path: Path) -> None:
     problems = check_file(f)
     assert len(problems) == 1
     assert "Dangerous character in code" in problems[0]
+
+
+# ---------------------------------------------------------------------------
+# Charset loading tests
+# ---------------------------------------------------------------------------
+
+def test_load_charset_base() -> None:
+    """load_charset('base') returns ranges and dangerous dicts."""
+    data = load_charset("base")
+    assert data["name"] == "base"
+    assert len(data["emoji_ranges"]) > 0
+    assert len(data["extra_ranges"]) > 0
+    assert len(data["dangerous"]) > 0
+
+
+def test_load_charset_chinese() -> None:
+    """load_charset('chinese') returns CJK ranges."""
+    data = load_charset("chinese")
+    assert data["name"] == "chinese"
+    assert len(data["extra_ranges"]) > 0
+
+
+def test_load_charset_unknown_raises() -> None:
+    """load_charset with unknown name raises FileNotFoundError."""
+    import pytest
+    with pytest.raises(FileNotFoundError):
+        load_charset("nonexistent")
+
+
+def test_load_charset_file(tmp_path: Path) -> None:
+    """load_charset can load from an absolute file path."""
+    custom = tmp_path / "custom.json"
+    custom.write_text('{"name":"custom","extra_ranges":[{"start":"0x4E00","end":"0x9FFF","name":"CJK"}]}')
+    data = load_charset(str(custom))
+    assert data["name"] == "custom"
+
+
+def test_resolve_charsets_default() -> None:
+    """No extra charsets returns base ranges only."""
+    ranges, dangerous = resolve_charsets([], [])
+    assert len(ranges) > 0
+    assert len(dangerous) > 0
+    # CJK should NOT be in ranges
+    assert not any(0x4E00 <= s and e <= 0x9FFF for s, e in ranges)
+
+
+def test_resolve_charsets_with_chinese() -> None:
+    """Adding 'chinese' charset includes CJK Unified Ideographs."""
+    ranges, dangerous = resolve_charsets(["chinese"], [])
+    assert any(s <= 0x4E00 and 0x9FFF <= e for s, e in ranges)
+
+
+def test_resolve_charsets_with_custom_file(tmp_path: Path) -> None:
+    """Custom charset file ranges are merged."""
+    custom = tmp_path / "custom.json"
+    custom.write_text('{"name":"custom","extra_ranges":[{"start":"0xABCD","end":"0xABFF","name":"Test"}]}')
+    ranges, _ = resolve_charsets([], [str(custom)])
+    assert any(s <= 0xABCD and 0xABFF <= e for s, e in ranges)
+
+
+def test_resolve_charsets_deduplicates() -> None:
+    """Duplicate ranges from overlapping charsets are deduplicated."""
+    ranges, _ = resolve_charsets(["chinese", "japanese"], [])
+    cjk_count = sum(1 for s, e in ranges if s == 0x4E00 and e == 0x9FFF)
+    assert cjk_count == 1

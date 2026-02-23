@@ -9,7 +9,71 @@ Additionally flags dangerous invisible/bidi characters in code regions
 
 from __future__ import annotations
 
+import importlib.resources
+import json
+import os
 from pathlib import Path
+
+
+def load_charset(name_or_path: str) -> dict:
+    """Load a charset definition by preset name or file path.
+
+    If name_or_path contains a path separator or ends with .json,
+    it is treated as a file path. Otherwise it is looked up from
+    the bundled charsets/ directory.
+    """
+    if os.sep in name_or_path or name_or_path.endswith(".json"):
+        p = Path(name_or_path)
+        if not p.is_file():
+            raise FileNotFoundError(f"Charset file not found: {name_or_path}")
+        return json.loads(p.read_text(encoding="utf-8"))
+
+    ref = importlib.resources.files("apdev").joinpath("charsets", f"{name_or_path}.json")
+    try:
+        text = ref.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Unknown charset: {name_or_path}")
+    return json.loads(text)
+
+
+def _parse_ranges(entries: list[dict]) -> list[tuple[int, int]]:
+    """Convert JSON range entries to (start, end) tuples."""
+    return [(int(e["start"], 16), int(e["end"], 16)) for e in entries]
+
+
+def _parse_dangerous(entries: list[dict]) -> dict[int, str]:
+    """Convert JSON dangerous entries to {code: name} dict."""
+    return {int(e["code"], 16): e["name"] for e in entries}
+
+
+def resolve_charsets(
+    charset_names: list[str],
+    charset_files: list[str],
+) -> tuple[list[tuple[int, int]], dict[int, str]]:
+    """Load base charset and merge any additional charsets.
+
+    Returns (all_ranges, dangerous_codepoints).
+    """
+    base = load_charset("base")
+    ranges_set: set[tuple[int, int]] = set()
+    ranges_set.update(_parse_ranges(base.get("emoji_ranges", [])))
+    ranges_set.update(_parse_ranges(base.get("extra_ranges", [])))
+    dangerous = _parse_dangerous(base.get("dangerous", []))
+
+    for name in charset_names:
+        data = load_charset(name)
+        ranges_set.update(_parse_ranges(data.get("emoji_ranges", [])))
+        ranges_set.update(_parse_ranges(data.get("extra_ranges", [])))
+        dangerous.update(_parse_dangerous(data.get("dangerous", [])))
+
+    for path in charset_files:
+        data = load_charset(path)
+        ranges_set.update(_parse_ranges(data.get("emoji_ranges", [])))
+        ranges_set.update(_parse_ranges(data.get("extra_ranges", [])))
+        dangerous.update(_parse_dangerous(data.get("dangerous", [])))
+
+    return sorted(ranges_set), dangerous
+
 
 # Allowed Unicode ranges beyond ASCII (0-127)
 EMOJI_RANGES: list[tuple[int, int]] = [
@@ -30,7 +94,9 @@ EXTRA_ALLOWED_RANGES: list[tuple[int, int]] = [
     (0x2200, 0x22FF),  # Mathematical Operators
     (0x2300, 0x23FF),  # Miscellaneous Technical
     (0x2500, 0x257F),  # Box Drawing
+    (0x2580, 0x259F),  # Block Elements
     (0x25A0, 0x25FF),  # Geometric Shapes
+    (0x2800, 0x28FF),  # Braille Patterns
     (0x2B00, 0x2BFF),  # Miscellaneous Symbols and Arrows
     (0xFE00, 0xFE0F),  # Variation Selectors
 ]
