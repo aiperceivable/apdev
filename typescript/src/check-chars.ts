@@ -113,79 +113,39 @@ export function resolveCharsets(
   return { ranges, dangerous };
 }
 
-/** Allowed Unicode ranges beyond ASCII (0-127). */
-export const EMOJI_RANGES: [number, number][] = [
-  [0x1f300, 0x1f5ff], // Symbols and Pictographs
-  [0x1f600, 0x1f64f], // Emoticons
-  [0x1f680, 0x1f6ff], // Transport and Map Symbols
-  [0x1f780, 0x1f7ff], // Geometric Shapes Extended
-  [0x1f900, 0x1f9ff], // Supplemental Symbols and Pictographs
-  [0x2600, 0x26ff], // Miscellaneous Symbols
-  [0x2700, 0x27bf], // Dingbats
-];
-
-export const EXTRA_ALLOWED_RANGES: [number, number][] = [
-  [0x0080, 0x00ff], // Latin-1 Supplement
-  [0x2000, 0x206f], // General Punctuation
-  [0x2100, 0x214f], // Letterlike Symbols
-  [0x2190, 0x21ff], // Arrows
-  [0x2200, 0x22ff], // Mathematical Operators
-  [0x2300, 0x23ff], // Miscellaneous Technical
-  [0x2500, 0x257f], // Box Drawing
-  [0x2580, 0x259f], // Block Elements
-  [0x25a0, 0x25ff], // Geometric Shapes
-  [0x2800, 0x28ff], // Braille Patterns
-  [0x2b00, 0x2bff], // Miscellaneous Symbols and Arrows
-  [0xfe00, 0xfe0f], // Variation Selectors
-];
-
-const ALL_RANGES = [...EMOJI_RANGES, ...EXTRA_ALLOWED_RANGES];
-
-/**
- * Dangerous codepoints that pass the allowed-range check but should be
- * flagged when they appear in code (not comments).  These are within the
- * General Punctuation range (0x2000-0x206F) which is broadly allowed.
- */
-export const DANGEROUS_CODEPOINTS: Map<number, string> = new Map([
-  // Bidi control characters (Trojan Source - CVE-2021-42574)
-  [0x202a, "LEFT-TO-RIGHT EMBEDDING"],
-  [0x202b, "RIGHT-TO-LEFT EMBEDDING"],
-  [0x202c, "POP DIRECTIONAL FORMATTING"],
-  [0x202d, "LEFT-TO-RIGHT OVERRIDE"],
-  [0x202e, "RIGHT-TO-LEFT OVERRIDE"],
-  [0x2066, "LEFT-TO-RIGHT ISOLATE"],
-  [0x2067, "RIGHT-TO-LEFT ISOLATE"],
-  [0x2068, "FIRST STRONG ISOLATE"],
-  [0x2069, "POP DIRECTIONAL ISOLATE"],
-  // Zero-width characters
-  [0x200b, "ZERO WIDTH SPACE"],
-  [0x200c, "ZERO WIDTH NON-JOINER"],
-  [0x200d, "ZERO WIDTH JOINER"],
-  [0x200e, "LEFT-TO-RIGHT MARK"],
-  [0x200f, "RIGHT-TO-LEFT MARK"],
-  [0x2060, "WORD JOINER"],
-]);
-
 const PYTHON_SUFFIXES = new Set([".py"]);
 const JS_SUFFIXES = new Set([".js", ".ts", ".tsx", ".jsx", ".mjs", ".cjs"]);
 
-/** Return true if the character is in the allowed set. */
-export function isAllowedChar(c: string): boolean {
-  const code = c.codePointAt(0)!;
-  if (code <= 127) {
-    return true;
-  }
-  for (const [start, end] of ALL_RANGES) {
-    if (code >= start && code <= end) {
-      return true;
-    }
+function isInRanges(code: number, ranges: [number, number][]): boolean {
+  if (code <= 127) return true;
+  for (const [start, end] of ranges) {
+    if (code >= start && code <= end) return true;
   }
   return false;
 }
 
+let _baseRanges: [number, number][] | null = null;
+let _baseDangerous: Map<number, string> | null = null;
+
+function getBaseDefaults(): { ranges: [number, number][]; dangerous: Map<number, string> } {
+  if (!_baseRanges || !_baseDangerous) {
+    const defaults = resolveCharsets([], []);
+    _baseRanges = defaults.ranges;
+    _baseDangerous = defaults.dangerous;
+  }
+  return { ranges: _baseRanges, dangerous: _baseDangerous };
+}
+
+/** Return true if the character is in the base allowed set. */
+export function isAllowedChar(c: string): boolean {
+  const { ranges } = getBaseDefaults();
+  return isInRanges(c.codePointAt(0)!, ranges);
+}
+
 /** Return true if the character is a dangerous invisible/bidi codepoint. */
 export function isDangerousChar(c: string): boolean {
-  return DANGEROUS_CODEPOINTS.has(c.codePointAt(0)!);
+  const { dangerous } = getBaseDefaults();
+  return dangerous.has(c.codePointAt(0)!);
 }
 
 /**
@@ -336,14 +296,6 @@ function computeCommentMaskJs(content: string): Set<number> {
   }
 
   return mask;
-}
-
-function isInRanges(code: number, ranges: [number, number][]): boolean {
-  if (code <= 127) return true;
-  for (const [start, end] of ranges) {
-    if (code >= start && code <= end) return true;
-  }
-  return false;
 }
 
 /**

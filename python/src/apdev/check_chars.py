@@ -75,75 +75,43 @@ def resolve_charsets(
     return sorted(ranges_set), dangerous
 
 
-# Allowed Unicode ranges beyond ASCII (0-127)
-EMOJI_RANGES: list[tuple[int, int]] = [
-    (0x1F300, 0x1F5FF),  # Symbols and Pictographs
-    (0x1F600, 0x1F64F),  # Emoticons
-    (0x1F680, 0x1F6FF),  # Transport and Map Symbols
-    (0x1F780, 0x1F7FF),  # Geometric Shapes Extended
-    (0x1F900, 0x1F9FF),  # Supplemental Symbols and Pictographs
-    (0x2600, 0x26FF),    # Miscellaneous Symbols
-    (0x2700, 0x27BF),    # Dingbats
-]
-
-EXTRA_ALLOWED_RANGES: list[tuple[int, int]] = [
-    (0x0080, 0x00FF),  # Latin-1 Supplement
-    (0x2000, 0x206F),  # General Punctuation
-    (0x2100, 0x214F),  # Letterlike Symbols
-    (0x2190, 0x21FF),  # Arrows
-    (0x2200, 0x22FF),  # Mathematical Operators
-    (0x2300, 0x23FF),  # Miscellaneous Technical
-    (0x2500, 0x257F),  # Box Drawing
-    (0x2580, 0x259F),  # Block Elements
-    (0x25A0, 0x25FF),  # Geometric Shapes
-    (0x2800, 0x28FF),  # Braille Patterns
-    (0x2B00, 0x2BFF),  # Miscellaneous Symbols and Arrows
-    (0xFE00, 0xFE0F),  # Variation Selectors
-]
-
-_ALL_RANGES = EMOJI_RANGES + EXTRA_ALLOWED_RANGES
-
-# Dangerous codepoints that pass the allowed-range check but should be
-# flagged when they appear in code (not comments).  These are within the
-# General Punctuation range (0x2000-0x206F) which is broadly allowed.
-DANGEROUS_CODEPOINTS: dict[int, str] = {
-    # Bidi control characters (Trojan Source - CVE-2021-42574)
-    0x202A: "LEFT-TO-RIGHT EMBEDDING",
-    0x202B: "RIGHT-TO-LEFT EMBEDDING",
-    0x202C: "POP DIRECTIONAL FORMATTING",
-    0x202D: "LEFT-TO-RIGHT OVERRIDE",
-    0x202E: "RIGHT-TO-LEFT OVERRIDE",
-    0x2066: "LEFT-TO-RIGHT ISOLATE",
-    0x2067: "RIGHT-TO-LEFT ISOLATE",
-    0x2068: "FIRST STRONG ISOLATE",
-    0x2069: "POP DIRECTIONAL ISOLATE",
-    # Zero-width characters
-    0x200B: "ZERO WIDTH SPACE",
-    0x200C: "ZERO WIDTH NON-JOINER",
-    0x200D: "ZERO WIDTH JOINER",
-    0x200E: "LEFT-TO-RIGHT MARK",
-    0x200F: "RIGHT-TO-LEFT MARK",
-    0x2060: "WORD JOINER",
-}
-
-_PYTHON_SUFFIXES = {".py"}
-_JS_SUFFIXES = {".js", ".ts", ".tsx", ".jsx", ".mjs", ".cjs"}
-
-
-def is_allowed_char(c: str) -> bool:
-    """Return True if the character is in the allowed set."""
+def _is_in_ranges(c: str, ranges: list[tuple[int, int]]) -> bool:
+    """Return True if the character is in any of the given ranges or ASCII."""
     code = ord(c)
     if code <= 127:
         return True
-    for start, end in _ALL_RANGES:
+    for start, end in ranges:
         if start <= code <= end:
             return True
     return False
 
 
+# Lazy-loaded base charset defaults for backward-compatible public API
+_BASE_RANGES: list[tuple[int, int]] | None = None
+_BASE_DANGEROUS: dict[int, str] | None = None
+
+
+def _get_base_defaults() -> tuple[list[tuple[int, int]], dict[int, str]]:
+    global _BASE_RANGES, _BASE_DANGEROUS
+    if _BASE_RANGES is None or _BASE_DANGEROUS is None:
+        _BASE_RANGES, _BASE_DANGEROUS = resolve_charsets([], [])
+    return _BASE_RANGES, _BASE_DANGEROUS
+
+
+def is_allowed_char(c: str) -> bool:
+    """Return True if the character is in the base allowed set."""
+    ranges, _ = _get_base_defaults()
+    return _is_in_ranges(c, ranges)
+
+
 def is_dangerous_char(c: str) -> bool:
     """Return True if the character is a dangerous invisible/bidi codepoint."""
-    return ord(c) in DANGEROUS_CODEPOINTS
+    _, dangerous = _get_base_defaults()
+    return ord(c) in dangerous
+
+
+_PYTHON_SUFFIXES = {".py"}
+_JS_SUFFIXES = {".js", ".ts", ".tsx", ".jsx", ".mjs", ".cjs"}
 
 
 def _compute_comment_mask(content: str, suffix: str) -> set[int]:
@@ -260,17 +228,6 @@ def _compute_comment_mask_js(content: str) -> set[int]:
         i += 1
 
     return mask
-
-
-def _is_in_ranges(c: str, ranges: list[tuple[int, int]]) -> bool:
-    """Return True if the character is in any of the given ranges or ASCII."""
-    code = ord(c)
-    if code <= 127:
-        return True
-    for start, end in ranges:
-        if start <= code <= end:
-            return True
-    return False
 
 
 def check_file(
