@@ -8,8 +8,110 @@
  * (Trojan Source - CVE-2021-42574) while allowing them in comments.
  */
 
-import { readFileSync } from "node:fs";
-import { extname } from "node:path";
+import { readFileSync, existsSync } from "node:fs";
+import { extname, dirname, join, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+
+export interface RangeEntry {
+  start: string;
+  end: string;
+  name: string;
+}
+
+export interface DangerousEntry {
+  code: string;
+  name: string;
+}
+
+export interface CharsetData {
+  name: string;
+  description?: string;
+  emoji_ranges?: RangeEntry[];
+  extra_ranges?: RangeEntry[];
+  dangerous?: DangerousEntry[];
+}
+
+function getCharsetsDir(): string {
+  const thisDir = typeof __dirname !== "undefined"
+    ? __dirname
+    : dirname(fileURLToPath(import.meta.url));
+  // In dev: src/check-chars.ts -> charsets/ is at src/charsets/
+  // In dist: dist/index.js -> charsets/ is at src/charsets/ (one level up from dist)
+  const devPath = join(thisDir, "charsets");
+  if (existsSync(devPath)) {
+    return devPath;
+  }
+  return join(thisDir, "..", "src", "charsets");
+}
+
+export function loadCharset(nameOrPath: string): CharsetData {
+  if (nameOrPath.includes(sep) || nameOrPath.includes("/") || nameOrPath.endsWith(".json")) {
+    if (!existsSync(nameOrPath)) {
+      throw new Error(`Charset file not found: ${nameOrPath}`);
+    }
+    return JSON.parse(readFileSync(nameOrPath, "utf-8"));
+  }
+  const filePath = join(getCharsetsDir(), `${nameOrPath}.json`);
+  if (!existsSync(filePath)) {
+    throw new Error(`Unknown charset: ${nameOrPath}`);
+  }
+  return JSON.parse(readFileSync(filePath, "utf-8"));
+}
+
+function parseRanges(entries: RangeEntry[]): [number, number][] {
+  return entries.map((e) => [parseInt(e.start, 16), parseInt(e.end, 16)]);
+}
+
+function parseDangerous(entries: DangerousEntry[]): Map<number, string> {
+  const map = new Map<number, string>();
+  for (const e of entries) {
+    map.set(parseInt(e.code, 16), e.name);
+  }
+  return map;
+}
+
+export function resolveCharsets(
+  charsetNames: string[],
+  charsetFiles: string[],
+): { ranges: [number, number][]; dangerous: Map<number, string> } {
+  const base = loadCharset("base");
+  const rangesSet = new Map<string, [number, number]>();
+  const dangerous = parseDangerous(base.dangerous ?? []);
+
+  function addRanges(entries: RangeEntry[]) {
+    for (const [s, e] of parseRanges(entries)) {
+      rangesSet.set(`${s}-${e}`, [s, e]);
+    }
+  }
+
+  addRanges(base.emoji_ranges ?? []);
+  addRanges(base.extra_ranges ?? []);
+
+  for (const name of charsetNames) {
+    const data = loadCharset(name);
+    addRanges(data.emoji_ranges ?? []);
+    addRanges(data.extra_ranges ?? []);
+    if (data.dangerous) {
+      for (const [code, dname] of parseDangerous(data.dangerous)) {
+        dangerous.set(code, dname);
+      }
+    }
+  }
+
+  for (const path of charsetFiles) {
+    const data = loadCharset(path);
+    addRanges(data.emoji_ranges ?? []);
+    addRanges(data.extra_ranges ?? []);
+    if (data.dangerous) {
+      for (const [code, dname] of parseDangerous(data.dangerous)) {
+        dangerous.set(code, dname);
+      }
+    }
+  }
+
+  const ranges = [...rangesSet.values()].sort((a, b) => a[0] - b[0]);
+  return { ranges, dangerous };
+}
 
 /** Allowed Unicode ranges beyond ASCII (0-127). */
 export const EMOJI_RANGES: [number, number][] = [
@@ -30,7 +132,9 @@ export const EXTRA_ALLOWED_RANGES: [number, number][] = [
   [0x2200, 0x22ff], // Mathematical Operators
   [0x2300, 0x23ff], // Miscellaneous Technical
   [0x2500, 0x257f], // Box Drawing
+  [0x2580, 0x259f], // Block Elements
   [0x25a0, 0x25ff], // Geometric Shapes
+  [0x2800, 0x28ff], // Braille Patterns
   [0x2b00, 0x2bff], // Miscellaneous Symbols and Arrows
   [0xfe00, 0xfe0f], // Variation Selectors
 ];

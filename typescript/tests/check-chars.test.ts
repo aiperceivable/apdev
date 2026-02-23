@@ -7,6 +7,8 @@ import {
   isDangerousChar,
   checkFile,
   checkPaths,
+  loadCharset,
+  resolveCharsets,
 } from "../src/check-chars.js";
 
 function makeTmpDir(): string {
@@ -37,6 +39,20 @@ describe("isAllowedChar", () => {
   it("allows arrow characters", () => {
     expect(isAllowedChar("\u2192")).toBe(true); // rightwards arrow
     expect(isAllowedChar("\u2190")).toBe(true); // leftwards arrow
+  });
+
+  it("allows block element characters", () => {
+    const chars = ["\u2580", "\u2584", "\u2588", "\u2591", "\u2592", "\u2593"]; // ▀ ▄ █ ░ ▒ ▓
+    for (const ch of chars) {
+      expect(isAllowedChar(ch)).toBe(true);
+    }
+  });
+
+  it("allows braille pattern characters", () => {
+    const chars = ["\u2800", "\u2801", "\u28FF", "\u2840"]; // ⠀ ⠁ ⣿ ⡀
+    for (const ch of chars) {
+      expect(isAllowedChar(ch)).toBe(true);
+    }
   });
 
   it("rejects CJK characters", () => {
@@ -188,5 +204,68 @@ describe("checkPaths", () => {
     const bad = join(dir, "bad.ts");
     writeFileSync(bad, "const x = '\u4E2D';\n", "utf-8");
     expect(checkPaths([bad])).toBe(1);
+  });
+});
+
+describe("loadCharset", () => {
+  it("loads base charset", () => {
+    const data = loadCharset("base");
+    expect(data.name).toBe("base");
+    expect(data.emoji_ranges!.length).toBeGreaterThan(0);
+    expect(data.extra_ranges!.length).toBeGreaterThan(0);
+    expect(data.dangerous!.length).toBeGreaterThan(0);
+  });
+
+  it("loads chinese charset", () => {
+    const data = loadCharset("chinese");
+    expect(data.name).toBe("chinese");
+    expect(data.extra_ranges!.length).toBeGreaterThan(0);
+  });
+
+  it("throws for unknown charset", () => {
+    expect(() => loadCharset("nonexistent")).toThrow();
+  });
+
+  it("loads from absolute file path", () => {
+    const dir = makeTmpDir();
+    const f = join(dir, "custom.json");
+    writeFileSync(f, JSON.stringify({
+      name: "custom",
+      extra_ranges: [{ start: "0x4E00", end: "0x9FFF", name: "CJK" }],
+    }));
+    const data = loadCharset(f);
+    expect(data.name).toBe("custom");
+  });
+});
+
+describe("resolveCharsets", () => {
+  it("returns base ranges by default", () => {
+    const { ranges, dangerous } = resolveCharsets([], []);
+    expect(ranges.length).toBeGreaterThan(0);
+    expect(dangerous.size).toBeGreaterThan(0);
+  });
+
+  it("includes CJK range with chinese charset", () => {
+    const { ranges } = resolveCharsets(["chinese"], []);
+    const hasCjk = ranges.some(([s, e]) => s <= 0x4E00 && 0x9FFF <= e);
+    expect(hasCjk).toBe(true);
+  });
+
+  it("includes custom file ranges", () => {
+    const dir = makeTmpDir();
+    const f = join(dir, "custom.json");
+    writeFileSync(f, JSON.stringify({
+      name: "custom",
+      extra_ranges: [{ start: "0xABCD", end: "0xABFF", name: "Test" }],
+    }));
+    const { ranges } = resolveCharsets([], [f]);
+    const hasCustom = ranges.some(([s, e]) => s <= 0xABCD && 0xABFF <= e);
+    expect(hasCustom).toBe(true);
+  });
+
+  it("deduplicates overlapping charset ranges", () => {
+    const { ranges } = resolveCharsets(["chinese", "japanese"], []);
+    const cjkCount = ranges.filter(([s, e]) => s === 0x4E00 && e === 0x9FFF).length;
+    expect(cjkCount).toBe(1);
   });
 });
