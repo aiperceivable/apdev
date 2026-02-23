@@ -1,5 +1,6 @@
 """Tests for the apdev CLI."""
 
+import os
 import subprocess
 import sys
 import textwrap
@@ -81,3 +82,34 @@ def test_cli_check_imports_reads_config(tmp_path: Path) -> None:
     result = run_apdev("check-imports", cwd=tmp_path)
     assert result.returncode == 0
     assert "No circular imports" in result.stdout
+
+
+def test_cli_check_chars_with_charset(tmp_path: Path) -> None:
+    """--charset chinese allows CJK characters."""
+    f = tmp_path / "cn.py"
+    f.write_text("x = '\u4e2d\u6587'\n")
+    result = run_apdev("check-chars", "--charset", "chinese", str(f))
+    assert result.returncode == 0
+
+
+def test_cli_check_chars_with_env_var(tmp_path: Path) -> None:
+    """APDEV_EXTRA_CHARS=chinese allows CJK characters."""
+    f = tmp_path / "cn.py"
+    f.write_text("x = '\u4e2d\u6587'\n")
+    result = subprocess.run(
+        [sys.executable, "-m", "apdev", "check-chars", str(f)],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "APDEV_EXTRA_CHARS": "chinese"},
+    )
+    assert result.returncode == 0
+
+
+def test_cli_check_chars_charset_file(tmp_path: Path) -> None:
+    """--charset-file with custom JSON allows specified ranges."""
+    custom = tmp_path / "custom.json"
+    custom.write_text('{"name":"custom","extra_ranges":[{"start":"0x4E00","end":"0x9FFF","name":"CJK"}]}')
+    f = tmp_path / "cn.py"
+    f.write_text("x = '\u4e2d\u6587'\n")
+    result = run_apdev("check-chars", "--charset-file", str(custom), str(f))
+    assert result.returncode == 0

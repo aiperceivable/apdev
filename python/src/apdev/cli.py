@@ -44,6 +44,19 @@ def _build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Files to check",
     )
+    chars_parser.add_argument(
+        "--charset",
+        action="append",
+        default=[],
+        help="Extra charset preset to enable (repeatable, e.g. --charset chinese)",
+    )
+    chars_parser.add_argument(
+        "--charset-file",
+        action="append",
+        default=[],
+        dest="charset_files",
+        help="Path to custom charset JSON file (repeatable)",
+    )
 
     # check-imports
     imports_parser = subparsers.add_parser(
@@ -90,7 +103,26 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "check-chars":
-        return check_paths(args.files)
+        from apdev.check_chars import resolve_charsets
+
+        charset_names = list(args.charset)
+        charset_files = list(args.charset_files)
+
+        # Fall back to APDEV_EXTRA_CHARS env var if no CLI args
+        if not charset_names and not charset_files:
+            env_val = os.environ.get("APDEV_EXTRA_CHARS", "")
+            if env_val:
+                for item in env_val.split(","):
+                    item = item.strip()
+                    if not item:
+                        continue
+                    if os.sep in item or item.endswith(".json"):
+                        charset_files.append(item)
+                    else:
+                        charset_names.append(item)
+
+        extra_ranges, dangerous = resolve_charsets(charset_names, charset_files)
+        return check_paths(args.files, extra_ranges=extra_ranges, dangerous=dangerous)
 
     if args.command == "check-imports":
         config = load_config()
