@@ -191,6 +191,15 @@ describe("checkFile", () => {
     expect(problems).toHaveLength(1);
     expect(problems[0]).toContain("Illegal character");
   });
+
+  it("allows CJK with chinese charset", () => {
+    const dir = makeTmpDir();
+    const f = join(dir, "cn.ts");
+    writeFileSync(f, "const x = '\u4E2D\u6587';\n", "utf-8");
+    const { ranges, dangerous } = resolveCharsets(["chinese"], []);
+    const problems = checkFile(f, 5, ranges, dangerous);
+    expect(problems).toEqual([]);
+  });
 });
 
 describe("checkPaths", () => {
@@ -204,6 +213,14 @@ describe("checkPaths", () => {
     const bad = join(dir, "bad.ts");
     writeFileSync(bad, "const x = '\u4E2D';\n", "utf-8");
     expect(checkPaths([bad])).toBe(1);
+  });
+
+  it("passes charsets through to checkFile", () => {
+    const dir = makeTmpDir();
+    const f = join(dir, "cn.ts");
+    writeFileSync(f, "const x = '\u4E2D';\n", "utf-8");
+    const { ranges, dangerous } = resolveCharsets(["chinese"], []);
+    expect(checkPaths([f], ranges, dangerous)).toBe(0);
   });
 });
 

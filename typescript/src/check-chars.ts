@@ -338,6 +338,14 @@ function computeCommentMaskJs(content: string): Set<number> {
   return mask;
 }
 
+function isInRanges(code: number, ranges: [number, number][]): boolean {
+  if (code <= 127) return true;
+  for (const [start, end] of ranges) {
+    if (code >= start && code <= end) return true;
+  }
+  return false;
+}
+
 /**
  * Check a single file for illegal characters.
  * Returns a list of problem descriptions (empty if the file is clean).
@@ -345,8 +353,15 @@ function computeCommentMaskJs(content: string): Set<number> {
 export function checkFile(
   filePath: string,
   maxProblems = 5,
+  extraRanges?: [number, number][],
+  dangerousMap?: Map<number, string>,
 ): string[] {
   const problems: string[] = [];
+  if (!extraRanges || !dangerousMap) {
+    const defaults = resolveCharsets([], []);
+    extraRanges ??= defaults.ranges;
+    dangerousMap ??= defaults.dangerous;
+  }
   try {
     const content = readFileSync(filePath, "utf-8");
     const suffix = extname(filePath).toLowerCase();
@@ -358,15 +373,15 @@ export function checkFile(
       position++;
       const code = char.codePointAt(0)!;
 
-      if (isDangerousChar(char)) {
+      if (dangerousMap.has(code)) {
         if (!commentMask.has(offset)) {
-          const name = DANGEROUS_CODEPOINTS.get(code)!;
+          const name = dangerousMap.get(code)!;
           const hex = code.toString(16).toUpperCase().padStart(4, "0");
           problems.push(
             `Dangerous character in code at position ${position}: U+${hex} (${name})`,
           );
         }
-      } else if (!isAllowedChar(char)) {
+      } else if (!isInRanges(code, extraRanges)) {
         const hex = code.toString(16).toUpperCase().padStart(4, "0");
         problems.push(
           `Illegal character at position ${position}: ${JSON.stringify(char)} (U+${hex})`,
@@ -387,10 +402,14 @@ export function checkFile(
 /**
  * Check multiple files. Returns 0 if all clean, 1 if any have problems.
  */
-export function checkPaths(paths: string[]): number {
+export function checkPaths(
+  paths: string[],
+  extraRanges?: [number, number][],
+  dangerousMap?: Map<number, string>,
+): number {
   let hasError = false;
   for (const path of paths) {
-    const problems = checkFile(path);
+    const problems = checkFile(path, 5, extraRanges, dangerousMap);
     if (problems.length > 0) {
       hasError = true;
       console.log(`\n${path} contains illegal characters:`);
