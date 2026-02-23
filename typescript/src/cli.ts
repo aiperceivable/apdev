@@ -3,13 +3,17 @@
  */
 
 import { readFileSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { Command } from "commander";
-import { checkPaths } from "./check-chars.js";
+import { checkPaths, resolveCharsets } from "./check-chars.js";
 import { checkCircularImports } from "./check-imports.js";
 import { loadConfig } from "./config.js";
+
+function collect(value: string, previous: string[]): string[] {
+  return [...previous, value];
+}
 
 function getVersion(): string {
   // Resolve package.json relative to this file
@@ -44,9 +48,31 @@ export function buildProgram(): Command {
     .command("check-chars")
     .description("Validate files contain only allowed characters")
     .argument("<files...>", "Files to check")
-    .action((files: string[]) => {
+    .option("--charset <name>", "Extra charset preset (repeatable)", collect, [])
+    .option("--charset-file <path>", "Custom charset JSON file (repeatable)", collect, [])
+    .action((files: string[], opts: { charset: string[]; charsetFile: string[] }) => {
+      let charsetNames = opts.charset;
+      let charsetFiles = opts.charsetFile;
+
+      // Fall back to APDEV_EXTRA_CHARS env var if no CLI args
+      if (charsetNames.length === 0 && charsetFiles.length === 0) {
+        const envVal = process.env.APDEV_EXTRA_CHARS ?? "";
+        if (envVal) {
+          for (const item of envVal.split(",")) {
+            const trimmed = item.trim();
+            if (!trimmed) continue;
+            if (trimmed.includes("/") || trimmed.includes(sep) || trimmed.endsWith(".json")) {
+              charsetFiles.push(trimmed);
+            } else {
+              charsetNames.push(trimmed);
+            }
+          }
+        }
+      }
+
+      const { ranges, dangerous } = resolveCharsets(charsetNames, charsetFiles);
       const resolved = files.map((f) => resolve(f));
-      const code = checkPaths(resolved);
+      const code = checkPaths(resolved, ranges, dangerous);
       process.exit(code);
     });
 

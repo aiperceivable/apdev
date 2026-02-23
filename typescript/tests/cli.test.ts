@@ -73,6 +73,45 @@ describe("CLI", () => {
     expect(result.stdout).toContain("No circular imports");
   });
 
+  it("check-chars --charset chinese allows CJK", () => {
+    const dir = makeTmpDir();
+    const f = join(dir, "cn.ts");
+    writeFileSync(f, "const x = '\u4E2D\u6587';\n");
+    const result = runApdev("check-chars", "--charset", "chinese", f);
+    expect(result.status).toBe(0);
+  });
+
+  it("check-chars with APDEV_EXTRA_CHARS=chinese allows CJK", () => {
+    const dir = makeTmpDir();
+    const f = join(dir, "cn.ts");
+    writeFileSync(f, "const x = '\u4E2D\u6587';\n");
+    try {
+      execFileSync("node", [CLI_PATH, "check-chars", f], {
+        encoding: "utf-8",
+        env: { ...process.env, APDEV_EXTRA_CHARS: "chinese" },
+        timeout: 10000,
+      });
+      // exit 0 means pass — test passes
+    } catch (e: unknown) {
+      const err = e as { status?: number };
+      // Should NOT fail
+      expect(err.status).toBe(0);
+    }
+  });
+
+  it("check-chars --charset-file allows custom ranges", () => {
+    const dir = makeTmpDir();
+    const custom = join(dir, "custom.json");
+    writeFileSync(custom, JSON.stringify({
+      name: "custom",
+      extra_ranges: [{ start: "0x4E00", end: "0x9FFF", name: "CJK" }],
+    }));
+    const f = join(dir, "cn.ts");
+    writeFileSync(f, "const x = '\u4E2D';\n");
+    const result = runApdev("check-chars", "--charset-file", custom, f);
+    expect(result.status).toBe(0);
+  });
+
   it("check-imports reads config from package.json", () => {
     const dir = makeTmpDir();
     const src = join(dir, "src", "mypkg");
