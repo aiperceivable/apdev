@@ -275,3 +275,24 @@ def test_resolve_charsets_deduplicates() -> None:
     ranges, _ = resolve_charsets(["chinese", "japanese"], [])
     cjk_count = sum(1 for s, e in ranges if s == 0x4E00 and e == 0x9FFF)
     assert cjk_count == 1
+
+
+# ---------------------------------------------------------------------------
+# check_file / check_paths with custom charsets
+# ---------------------------------------------------------------------------
+
+def test_check_file_with_chinese_charset(tmp_path: Path) -> None:
+    """Chinese characters should pass when chinese charset is active."""
+    f = tmp_path / "cn.py"
+    f.write_text("x = '\u4e2d\u6587'\n", encoding="utf-8")
+    ranges, dangerous = resolve_charsets(["chinese"], [])
+    problems = check_file(f, extra_ranges=ranges, dangerous=dangerous)
+    assert problems == []
+
+
+def test_check_paths_with_charset(tmp_path: Path) -> None:
+    """check_paths passes charsets through to check_file."""
+    f = tmp_path / "cn.py"
+    f.write_text("x = '\u4e2d\u6587'\n", encoding="utf-8")
+    ranges, dangerous = resolve_charsets(["chinese"], [])
+    assert check_paths([f], extra_ranges=ranges, dangerous=dangerous) == 0

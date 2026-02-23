@@ -262,26 +262,49 @@ def _compute_comment_mask_js(content: str) -> set[int]:
     return mask
 
 
-def check_file(path: Path, *, max_problems: int = 5) -> list[str]:
+def _is_in_ranges(c: str, ranges: list[tuple[int, int]]) -> bool:
+    """Return True if the character is in any of the given ranges or ASCII."""
+    code = ord(c)
+    if code <= 127:
+        return True
+    for start, end in ranges:
+        if start <= code <= end:
+            return True
+    return False
+
+
+def check_file(
+    path: Path,
+    *,
+    max_problems: int = 5,
+    extra_ranges: list[tuple[int, int]] | None = None,
+    dangerous: dict[int, str] | None = None,
+) -> list[str]:
     """Check a single file for illegal characters.
 
     Returns a list of problem descriptions (empty if the file is clean).
     """
     problems: list[str] = []
+    if extra_ranges is None or dangerous is None:
+        default_ranges, default_dangerous = resolve_charsets([], [])
+        if extra_ranges is None:
+            extra_ranges = default_ranges
+        if dangerous is None:
+            dangerous = default_dangerous
     try:
         content = path.read_text(encoding="utf-8")
         suffix = path.suffix.lower()
         comment_mask = _compute_comment_mask(content, suffix)
         for i, char in enumerate(content):
-            if is_dangerous_char(char):
+            if ord(char) in dangerous:
                 if i not in comment_mask:
                     code = ord(char)
-                    name = DANGEROUS_CODEPOINTS[code]
+                    name = dangerous[code]
                     problems.append(
                         f"Dangerous character in code at position {i + 1}: "
                         f"U+{code:04X} ({name})"
                     )
-            elif not is_allowed_char(char):
+            elif not _is_in_ranges(char, extra_ranges):
                 problems.append(
                     f"Illegal character at position {i + 1}: "
                     f"{char!r} (U+{ord(char):04X})"
@@ -293,11 +316,16 @@ def check_file(path: Path, *, max_problems: int = 5) -> list[str]:
     return problems
 
 
-def check_paths(paths: list[Path]) -> int:
+def check_paths(
+    paths: list[Path],
+    *,
+    extra_ranges: list[tuple[int, int]] | None = None,
+    dangerous: dict[int, str] | None = None,
+) -> int:
     """Check multiple files. Returns 0 if all clean, 1 if any have problems."""
     has_error = False
     for path in paths:
-        problems = check_file(path)
+        problems = check_file(path, extra_ranges=extra_ranges, dangerous=dangerous)
         if problems:
             has_error = True
             print(f"\n{path} contains illegal characters:")
