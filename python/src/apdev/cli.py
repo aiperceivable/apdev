@@ -80,7 +80,8 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Interactive release automation (build, tag, GitHub release, PyPI upload)",
     )
     release_parser.add_argument(
-        "--yes", "-y",
+        "--yes",
+        "-y",
         action="store_true",
         help="Auto-accept all defaults (silent mode)",
     )

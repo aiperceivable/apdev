@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## [0.2.0] - 2026-02-25
+
+### Added
+
+- Custom charset support via shared JSON definition files (`shared/charsets/`)
+- `load_charset(name_or_path)` — load a bundled preset (e.g. `chinese`) or custom JSON file
+- `resolve_charsets(charset_names, charset_files)` — merge base + extra charsets with deduplication
+- Bundled charset presets: `base`, `chinese`, `japanese`, `korean`
+- CLI `--charset` flag (repeatable) to enable preset charsets
+- CLI `--charset-file` flag (repeatable) to load custom charset JSON files
+- `APDEV_EXTRA_CHARS` environment variable — comma-separated charset names or file paths, used as fallback when no CLI args provided
+- `check-chars`: Block Elements (U+2580-U+259F) and Braille Patterns (U+2800-U+28FF) to default allowed ranges
+
+### Changed
+
+- Character ranges and dangerous codepoints now loaded from `charsets/base.json` instead of hardcoded constants
+- `check_file()` and `check_paths()` accept optional `extra_ranges` and `dangerous` kwargs for custom charset support
+- `is_allowed_char()` now excludes dangerous codepoints (Trojan Source vectors) even though they fall within the General Punctuation allowed range
+
+### Fixed
+
+- `is_allowed_char()` previously returned `True` for dangerous codepoints (U+200B, U+202E, etc.) because they fall within the General Punctuation range (U+2000-U+206F)
+- `load_charset()` now catches all exceptions from `importlib.resources` (not just `FileNotFoundError`)
+- `check_file()` now uses lazy-loaded cache instead of re-parsing `base.json` on every call
+
 ## [0.1.6] - 2026-02-16
 
 ### Added

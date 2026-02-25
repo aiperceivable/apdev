@@ -31,8 +31,8 @@ def load_charset(name_or_path: str) -> dict:
     ref = importlib.resources.files("apdev").joinpath("charsets", f"{name_or_path}.json")
     try:
         text = ref.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Unknown charset: {name_or_path}")
+    except Exception as exc:
+        raise FileNotFoundError(f"Unknown charset: {name_or_path}") from exc
     return json.loads(text)
 
 
@@ -99,8 +99,14 @@ def _get_base_defaults() -> tuple[list[tuple[int, int]], dict[int, str]]:
 
 
 def is_allowed_char(c: str) -> bool:
-    """Return True if the character is in the base allowed set."""
-    ranges, _ = _get_base_defaults()
+    """Return True if the character is in the base allowed set.
+
+    Dangerous codepoints (Trojan Source vectors) are excluded even though
+    they fall within allowed Unicode ranges.
+    """
+    ranges, dangerous = _get_base_defaults()
+    if ord(c) in dangerous:
+        return False
     return _is_in_ranges(c, ranges)
 
 
@@ -243,7 +249,7 @@ def check_file(
     """
     problems: list[str] = []
     if extra_ranges is None or dangerous is None:
-        default_ranges, default_dangerous = resolve_charsets([], [])
+        default_ranges, default_dangerous = _get_base_defaults()
         if extra_ranges is None:
             extra_ranges = default_ranges
         if dangerous is None:
@@ -263,8 +269,7 @@ def check_file(
                     )
             elif not _is_in_ranges(char, extra_ranges):
                 problems.append(
-                    f"Illegal character at position {i + 1}: "
-                    f"{char!r} (U+{ord(char):04X})"
+                    f"Illegal character at position {i + 1}: " f"{char!r} (U+{ord(char):04X})"
                 )
             if len(problems) >= max_problems:
                 break

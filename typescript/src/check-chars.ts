@@ -136,10 +136,17 @@ function getBaseDefaults(): { ranges: [number, number][]; dangerous: Map<number,
   return { ranges: _baseRanges, dangerous: _baseDangerous };
 }
 
-/** Return true if the character is in the base allowed set. */
+/**
+ * Return true if the character is in the base allowed set.
+ *
+ * Dangerous codepoints (Trojan Source vectors) are excluded even though
+ * they fall within allowed Unicode ranges.
+ */
 export function isAllowedChar(c: string): boolean {
-  const { ranges } = getBaseDefaults();
-  return isInRanges(c.codePointAt(0)!, ranges);
+  const { ranges, dangerous } = getBaseDefaults();
+  const code = c.codePointAt(0)!;
+  if (dangerous.has(code)) return false;
+  return isInRanges(code, ranges);
 }
 
 /** Return true if the character is a dangerous invisible/bidi codepoint. */
@@ -310,7 +317,7 @@ export function checkFile(
 ): string[] {
   const problems: string[] = [];
   if (!extraRanges || !dangerousMap) {
-    const defaults = resolveCharsets([], []);
+    const defaults = getBaseDefaults();
     extraRanges ??= defaults.ranges;
     dangerousMap ??= defaults.dangerous;
   }
@@ -345,8 +352,8 @@ export function checkFile(
       }
       offset += char.length; // 1 for BMP, 2 for supplementary
     }
-  } catch {
-    problems.push(`Failed to read file: ${filePath}`);
+  } catch (e) {
+    problems.push(`Failed to read file: ${filePath} (${e})`);
   }
   return problems;
 }

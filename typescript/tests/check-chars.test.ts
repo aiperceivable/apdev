@@ -55,6 +55,13 @@ describe("isAllowedChar", () => {
     }
   });
 
+  it("rejects dangerous codepoints even within General Punctuation range", () => {
+    expect(isAllowedChar("\u200B")).toBe(false); // ZERO WIDTH SPACE
+    expect(isAllowedChar("\u202E")).toBe(false); // RIGHT-TO-LEFT OVERRIDE
+    expect(isAllowedChar("\u2066")).toBe(false); // LEFT-TO-RIGHT ISOLATE
+    expect(isAllowedChar("\u2060")).toBe(false); // WORD JOINER
+  });
+
   it("rejects CJK characters", () => {
     expect(isAllowedChar("\u4E2D")).toBe(false); // Chinese character
   });

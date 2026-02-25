@@ -94,6 +94,7 @@ def test_find_cycles_deduplication() -> None:
 # Relative import tests
 # ---------------------------------------------------------------------------
 
+
 def test_import_analyzer_relative_from_dot_module() -> None:
     """'from .b import x' in mypkg.a resolves to mypkg.b."""
     source = "from .b import something"

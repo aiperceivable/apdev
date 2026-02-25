@@ -99,6 +99,28 @@ describe("CLI", () => {
     }
   });
 
+  it("CLI --charset-file overrides APDEV_EXTRA_CHARS", () => {
+    const dir = makeTmpDir();
+    // Env says chinese, but CLI provides an empty charset file
+    const empty = join(dir, "empty.json");
+    writeFileSync(empty, JSON.stringify({ name: "empty", extra_ranges: [] }));
+    const f = join(dir, "cn.ts");
+    writeFileSync(f, "const x = '\u4E2D\u6587';\n");
+    try {
+      execFileSync("node", [CLI_PATH, "check-chars", "--charset-file", empty, f], {
+        encoding: "utf-8",
+        env: { ...process.env, APDEV_EXTRA_CHARS: "chinese" },
+        timeout: 10000,
+      });
+      // exit 0 means CJK was allowed — that's wrong, CLI should override env
+      expect.unreachable("Should have exited with non-zero");
+    } catch (e: unknown) {
+      const err = e as { status?: number };
+      // CLI args present → env var ignored → CJK rejected
+      expect(err.status).toBe(1);
+    }
+  });
+
   it("check-chars --charset-file allows custom ranges", () => {
     const dir = makeTmpDir();
     const custom = join(dir, "custom.json");
@@ -127,9 +149,6 @@ describe("CLI", () => {
       }),
     );
 
-    const result = runApdev("check-imports");
-    // This will use cwd which isn't `dir`, so we run with cwd
-    // Actually we need to run with a different approach for cwd:
     try {
       const stdout = execFileSync("node", [CLI_PATH, "check-imports"], {
         encoding: "utf-8",

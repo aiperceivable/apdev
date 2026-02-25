@@ -105,10 +105,29 @@ def test_cli_check_chars_with_env_var(tmp_path: Path) -> None:
     assert result.returncode == 0
 
 
+def test_cli_check_chars_cli_overrides_env(tmp_path: Path) -> None:
+    """CLI --charset overrides APDEV_EXTRA_CHARS (env ignored when CLI args present)."""
+    f = tmp_path / "cn.py"
+    f.write_text("x = '\u4e2d\u6587'\n")
+    # Env says chinese, but CLI provides a charset that doesn't include CJK
+    custom = tmp_path / "empty.json"
+    custom.write_text('{"name":"empty","extra_ranges":[]}')
+    result = subprocess.run(
+        [sys.executable, "-m", "apdev", "check-chars", "--charset-file", str(custom), str(f)],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "APDEV_EXTRA_CHARS": "chinese"},
+    )
+    # CLI args present → env var ignored → CJK rejected
+    assert result.returncode == 1
+
+
 def test_cli_check_chars_charset_file(tmp_path: Path) -> None:
     """--charset-file with custom JSON allows specified ranges."""
     custom = tmp_path / "custom.json"
-    custom.write_text('{"name":"custom","extra_ranges":[{"start":"0x4E00","end":"0x9FFF","name":"CJK"}]}')
+    custom.write_text(
+        '{"name":"custom","extra_ranges":[{"start":"0x4E00","end":"0x9FFF","name":"CJK"}]}'
+    )
     f = tmp_path / "cn.py"
     f.write_text("x = '\u4e2d\u6587'\n")
     result = run_apdev("check-chars", "--charset-file", str(custom), str(f))

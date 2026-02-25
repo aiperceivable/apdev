@@ -100,7 +100,7 @@ export function buildProgram(): Command {
   program
     .command("release")
     .description("Interactive release automation (build, tag, GitHub release, npm publish)")
-    .option("--yes, -y", "Auto-accept all defaults (silent mode)")
+    .option("-y, --yes", "Auto-accept all defaults (silent mode)")
     .argument("[version]", "Version to release (auto-detected from package.json if omitted)")
     .action((version?: string, opts?: { yes?: boolean }) => {
       const script = getReleaseScript();

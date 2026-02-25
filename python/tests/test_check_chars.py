@@ -47,9 +47,18 @@ def test_block_elements_allowed() -> None:
 
 def test_braille_patterns_allowed() -> None:
     """Braille pattern characters used in terminal graphics should be allowed."""
-    chars = ["\u2800", "\u2801", "\u28FF", "\u2840"]  # ⠀ ⠁ ⣿ ⡀
+    chars = ["\u2800", "\u2801", "\u28ff", "\u2840"]  # ⠀ ⠁ ⣿ ⡀
     for ch in chars:
         assert is_allowed_char(ch), f"{ch!r} (U+{ord(ch):04X}) should be allowed"
+
+
+def test_dangerous_chars_not_allowed() -> None:
+    """Dangerous codepoints should NOT pass is_allowed_char even though they
+    fall within the General Punctuation allowed range."""
+    assert not is_allowed_char("\u200b")  # ZERO WIDTH SPACE
+    assert not is_allowed_char("\u202e")  # RIGHT-TO-LEFT OVERRIDE
+    assert not is_allowed_char("\u2066")  # LEFT-TO-RIGHT ISOLATE
+    assert not is_allowed_char("\u2060")  # WORD JOINER
 
 
 def test_chinese_chars_rejected() -> None:
@@ -104,6 +113,7 @@ def test_check_paths_returns_exit_code(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # Dangerous character tests
 # ---------------------------------------------------------------------------
+
 
 def test_is_dangerous_char() -> None:
     """is_dangerous_char identifies all 15 dangerous codepoints."""
@@ -216,6 +226,7 @@ def test_unknown_extension_treats_all_as_code(tmp_path: Path) -> None:
 # Charset loading tests
 # ---------------------------------------------------------------------------
 
+
 def test_load_charset_base() -> None:
     """load_charset('base') returns ranges and dangerous dicts."""
     data = load_charset("base")
@@ -235,6 +246,7 @@ def test_load_charset_chinese() -> None:
 def test_load_charset_unknown_raises() -> None:
     """load_charset with unknown name raises FileNotFoundError."""
     import pytest
+
     with pytest.raises(FileNotFoundError):
         load_charset("nonexistent")
 
@@ -242,7 +254,9 @@ def test_load_charset_unknown_raises() -> None:
 def test_load_charset_file(tmp_path: Path) -> None:
     """load_charset can load from an absolute file path."""
     custom = tmp_path / "custom.json"
-    custom.write_text('{"name":"custom","extra_ranges":[{"start":"0x4E00","end":"0x9FFF","name":"CJK"}]}')
+    custom.write_text(
+        '{"name":"custom","extra_ranges":[{"start":"0x4E00","end":"0x9FFF","name":"CJK"}]}'
+    )
     data = load_charset(str(custom))
     assert data["name"] == "custom"
 
@@ -265,7 +279,9 @@ def test_resolve_charsets_with_chinese() -> None:
 def test_resolve_charsets_with_custom_file(tmp_path: Path) -> None:
     """Custom charset file ranges are merged."""
     custom = tmp_path / "custom.json"
-    custom.write_text('{"name":"custom","extra_ranges":[{"start":"0xABCD","end":"0xABFF","name":"Test"}]}')
+    custom.write_text(
+        '{"name":"custom","extra_ranges":[{"start":"0xABCD","end":"0xABFF","name":"Test"}]}'
+    )
     ranges, _ = resolve_charsets([], [str(custom)])
     assert any(s <= 0xABCD and 0xABFF <= e for s, e in ranges)
 
@@ -280,6 +296,7 @@ def test_resolve_charsets_deduplicates() -> None:
 # ---------------------------------------------------------------------------
 # check_file / check_paths with custom charsets
 # ---------------------------------------------------------------------------
+
 
 def test_check_file_with_chinese_charset(tmp_path: Path) -> None:
     """Chinese characters should pass when chinese charset is active."""
