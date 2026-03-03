@@ -1,6 +1,6 @@
 # apdev
 
-Shared development tools for the [aipartnerup](https://github.com/aipartnerup) ecosystem.
+General-purpose development tools for quality assurance, character validation, and release automation.
 
 ## Packages
 

@@ -1,6 +1,6 @@
 # apdev (Python)
 
-Shared development tools for Python projects.
+General-purpose development tools for Python projects.
 
 ## Installation
 

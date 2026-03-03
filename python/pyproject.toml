@@ -4,13 +4,24 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "apdev"
-version = "0.2.0"
-description = "Shared development tools for Python projects - character validation, circular import detection, and more"
+version = "0.2.1"
+description = "General-purpose development tools for Python - character validation, circular import detection, and more"
 readme = "README.md"
 license = {text = "Apache-2.0"}
 requires-python = ">=3.10"
 authors = [
     {name = "aipartnerup", email = "tercel.yi@gmail.com"}
+]
+keywords = [
+    "development-tools",
+    "quality-assurance",
+    "linting",
+    "static-analysis",
+    "character-validation",
+    "circular-imports",
+    "release-automation",
+    "unicode-checker",
+    "trojan-source-detection",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
