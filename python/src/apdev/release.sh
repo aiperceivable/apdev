@@ -203,7 +203,11 @@ step1_version_verification() {
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     
     PYPROJECT_VERSION=$(grep -E '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
-    INIT_VERSION=$(grep -E '^__version__ = ' src/${PACKAGE_NAME}/__init__.py | sed 's/__version__ = "\(.*\)"/\1/')
+    # Support both static (__version__ = "x.x.x") and dynamic (importlib.metadata) version patterns
+    INIT_VERSION=$(python3 -c "from ${PACKAGE_NAME} import __version__; print(__version__)" 2>/dev/null)
+    if [ -z "$INIT_VERSION" ]; then
+        INIT_VERSION=$(grep -E '^__version__ = ' src/${PACKAGE_NAME}/__init__.py | sed 's/__version__ = "\(.*\)"/\1/')
+    fi
     
     echo -e "  pyproject.toml:    ${CYAN}${PYPROJECT_VERSION}${NC}"
     echo -e "  __init__.py:       ${CYAN}${INIT_VERSION}${NC}"
@@ -211,6 +215,7 @@ step1_version_verification() {
     
     if [ "$PYPROJECT_VERSION" != "$VERSION" ] || [ "$INIT_VERSION" != "$VERSION" ]; then
         echo -e "${RED}❌ Version mismatch detected!${NC}"
+        echo -e "${YELLOW}💡 Hint: Try 'pip install -e .' to sync the installed package version${NC}"
         return 1
     fi
     

@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## [0.2.1] - 2026-03-06
+
+### Fixed
+
+- Release script version check now supports dynamic versions via `importlib.metadata` (not just static `__version__ = "x.x.x"`)
+- Added hint message suggesting `pip install -e .` when version mismatch is detected
+
 ## [0.2.0] - 2026-02-25
 
 ### Added
