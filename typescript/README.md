@@ -1,6 +1,6 @@
 # apdev
 
-Shared development tools for TypeScript/JavaScript projects - character validation, circular import detection, and more.
+General-purpose development tools for TypeScript/JavaScript projects - character validation, circular import detection, and more.
 
 ## Installation
 

@@ -12,6 +12,17 @@ requires-python = ">=3.10"
 authors = [
     {name = "aipartnerup", email = "tercel.yi@gmail.com"}
 ]
+keywords = [
+    "development-tools",
+    "quality-assurance",
+    "linting",
+    "static-analysis",
+    "character-validation",
+    "circular-imports",
+    "release-automation",
+    "unicode-checker",
+    "trojan-source-detection",
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
