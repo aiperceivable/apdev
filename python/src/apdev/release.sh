@@ -203,22 +203,58 @@ step1_version_verification() {
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     
     PYPROJECT_VERSION=$(grep -E '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
-    # Support both static (__version__ = "x.x.x") and dynamic (importlib.metadata) version patterns
-    INIT_VERSION=$(python3 -c "from ${PACKAGE_NAME} import __version__; print(__version__)" 2>/dev/null)
-    if [ -z "$INIT_VERSION" ]; then
-        INIT_VERSION=$(grep -E '^__version__ = ' src/${PACKAGE_NAME}/__init__.py | sed 's/__version__ = "\(.*\)"/\1/')
+
+    # Locate __init__.py (src layout or flat layout)
+    INIT_FILE=""
+    if [ -f "src/${PACKAGE_NAME}/__init__.py" ]; then
+        INIT_FILE="src/${PACKAGE_NAME}/__init__.py"
+        SRC_ROOT="src"
+    elif [ -f "${PACKAGE_NAME}/__init__.py" ]; then
+        INIT_FILE="${PACKAGE_NAME}/__init__.py"
+        SRC_ROOT="."
+    fi
+
+    INIT_VERSION=""
+    INIT_DYNAMIC=false
+    if [ -n "$INIT_FILE" ]; then
+        # 1) Try dynamic import with local source on PYTHONPATH
+        INIT_VERSION=$(PYTHONPATH="${SRC_ROOT}:${PYTHONPATH:-}" python3 -c "from ${PACKAGE_NAME} import __version__; print(__version__)" 2>/dev/null)
+        # 2) Fallback: grep static __version__ = "x.x.x"
+        if [ -z "$INIT_VERSION" ]; then
+            INIT_VERSION=$(grep -E '^__version__ = ' "$INIT_FILE" 2>/dev/null | sed 's/__version__ = "\(.*\)"/\1/')
+        fi
+        # 3) If still empty, check if __init__.py uses dynamic versioning (importlib.metadata)
+        if [ -z "$INIT_VERSION" ]; then
+            if grep -qE 'importlib\.metadata|from importlib' "$INIT_FILE" 2>/dev/null; then
+                INIT_VERSION="$PYPROJECT_VERSION"
+                INIT_DYNAMIC=true
+            fi
+        fi
     fi
     
     echo -e "  pyproject.toml:    ${CYAN}${PYPROJECT_VERSION}${NC}"
-    echo -e "  __init__.py:       ${CYAN}${INIT_VERSION}${NC}"
+    if [ -z "$INIT_FILE" ]; then
+        echo -e "  __init__.py:       ${YELLOW}(not found, skipped)${NC}"
+    elif [ "$INIT_DYNAMIC" = true ]; then
+        echo -e "  __init__.py:       ${CYAN}${INIT_VERSION}${NC} (dynamic, from pyproject.toml)"
+    elif [ -n "$INIT_VERSION" ]; then
+        echo -e "  __init__.py:       ${CYAN}${INIT_VERSION}${NC}"
+    else
+        echo -e "  __init__.py:       ${YELLOW}(no __version__ defined, skipped)${NC}"
+    fi
     echo -e "  Script version:    ${CYAN}${VERSION}${NC}"
-    
-    if [ "$PYPROJECT_VERSION" != "$VERSION" ] || [ "$INIT_VERSION" != "$VERSION" ]; then
-        echo -e "${RED}❌ Version mismatch detected!${NC}"
+
+    if [ "$PYPROJECT_VERSION" != "$VERSION" ]; then
+        echo -e "${RED}❌ Version mismatch: pyproject.toml (${PYPROJECT_VERSION}) != script (${VERSION})${NC}"
+        return 1
+    fi
+
+    if [ -n "$INIT_VERSION" ] && [ "$INIT_VERSION" != "$VERSION" ]; then
+        echo -e "${RED}❌ Version mismatch: __init__.py (${INIT_VERSION}) != script (${VERSION})${NC}"
         echo -e "${YELLOW}💡 Hint: Try 'pip install -e .' to sync the installed package version${NC}"
         return 1
     fi
-    
+
     echo -e "${GREEN}✅ All versions match${NC}"
     echo ""
     return 0
