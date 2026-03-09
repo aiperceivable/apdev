@@ -318,30 +318,82 @@ def _default_project_files() -> list[Path]:
     return files
 
 
-_SKIP_SUFFIXES = frozenset({
-    # Python bytecode
-    ".pyc", ".pyo",
-    # Images
-    ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".svg", ".webp",
-    # Fonts
-    ".ttf", ".otf", ".woff", ".woff2", ".eot",
-    # Archives
-    ".zip", ".tar", ".gz", ".bz2", ".xz", ".7z",
-    # Compiled / binary
-    ".so", ".dylib", ".dll", ".exe", ".o", ".a", ".whl", ".egg",
-    # Media
-    ".mp3", ".mp4", ".wav", ".avi", ".mov", ".flac", ".ogg",
-    # Documents
-    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
-    # Data
-    ".db", ".sqlite", ".sqlite3", ".pickle", ".pkl",
-})
+_SKIP_SUFFIXES = frozenset(
+    {
+        # Python bytecode
+        ".pyc",
+        ".pyo",
+        # Images
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".bmp",
+        ".ico",
+        ".svg",
+        ".webp",
+        # Fonts
+        ".ttf",
+        ".otf",
+        ".woff",
+        ".woff2",
+        ".eot",
+        # Archives
+        ".zip",
+        ".tar",
+        ".gz",
+        ".bz2",
+        ".xz",
+        ".7z",
+        # Compiled / binary
+        ".so",
+        ".dylib",
+        ".dll",
+        ".exe",
+        ".o",
+        ".a",
+        ".whl",
+        ".egg",
+        # Media
+        ".mp3",
+        ".mp4",
+        ".wav",
+        ".avi",
+        ".mov",
+        ".flac",
+        ".ogg",
+        # Documents
+        ".pdf",
+        ".doc",
+        ".docx",
+        ".xls",
+        ".xlsx",
+        ".ppt",
+        ".pptx",
+        # Data
+        ".db",
+        ".sqlite",
+        ".sqlite3",
+        ".pickle",
+        ".pkl",
+    }
+)
 
-_SKIP_DIRS = frozenset({
-    "__pycache__", "node_modules", ".git", ".venv", "venv",
-    ".tox", ".mypy_cache", ".pytest_cache", ".ruff_cache",
-    "dist", "build",
-})
+_SKIP_DIRS = frozenset(
+    {
+        "__pycache__",
+        "node_modules",
+        ".git",
+        ".venv",
+        "venv",
+        ".tox",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        "dist",
+        "build",
+    }
+)
 
 
 def _walk_dir(directory: Path) -> list[Path]:
