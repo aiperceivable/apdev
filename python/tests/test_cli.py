@@ -122,6 +122,60 @@ def test_cli_check_chars_cli_overrides_env(tmp_path: Path) -> None:
     assert result.returncode == 1
 
 
+def test_cli_check_chars_no_args_scans_defaults(tmp_path: Path) -> None:
+    """apdev check-chars with no files scans src/, tests/, and root config files."""
+    src = tmp_path / "src" / "pkg"
+    src.mkdir(parents=True)
+    (src / "a.py").write_text("x = 1\n")
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_a.py").write_text("y = 2\n")
+    (tmp_path / "README.md").write_text("hello\n")
+
+    result = run_apdev("check-chars", cwd=tmp_path)
+    assert result.returncode == 0
+
+
+def test_cli_check_chars_no_args_detects_bad(tmp_path: Path) -> None:
+    """apdev check-chars with no files catches illegal chars in default dirs."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "bad.py").write_text("x = '\u4e2d'\n")
+
+    result = run_apdev("check-chars", cwd=tmp_path)
+    assert result.returncode == 1
+    assert "illegal characters" in result.stdout.lower()
+
+
+def test_cli_check_chars_no_args_empty_project(tmp_path: Path) -> None:
+    """apdev check-chars with no files and no default dirs returns 0."""
+    result = run_apdev("check-chars", cwd=tmp_path)
+    assert result.returncode == 0
+    assert "No files to check" in result.stdout
+
+
+def test_cli_check_chars_directory(tmp_path: Path) -> None:
+    """apdev check-chars with a directory recursively checks files."""
+    sub = tmp_path / "pkg"
+    sub.mkdir()
+    (sub / "a.py").write_text("x = 1\n")
+    (sub / "b.py").write_text("x = '\u4e2d'\n")  # illegal char
+
+    result = run_apdev("check-chars", str(sub))
+    assert result.returncode == 1
+    assert "illegal characters" in result.stdout.lower()
+
+
+def test_cli_check_chars_directory_clean(tmp_path: Path) -> None:
+    """apdev check-chars with a clean directory returns 0."""
+    sub = tmp_path / "pkg"
+    sub.mkdir()
+    (sub / "a.py").write_text("x = 1\n")
+
+    result = run_apdev("check-chars", str(sub))
+    assert result.returncode == 0
+
+
 def test_cli_check_chars_charset_file(tmp_path: Path) -> None:
     """--charset-file with custom JSON allows specified ranges."""
     custom = tmp_path / "custom.json"

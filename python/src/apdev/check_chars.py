@@ -278,6 +278,89 @@ def check_file(
     return problems
 
 
+_DEFAULT_DIRS = ("src", "tests", "examples")
+_DEFAULT_GLOBS = ("*.md", "*.yml", "*.yaml", "*.json", ".gitignore")
+
+
+def _resolve_paths(paths: list[Path]) -> list[Path]:
+    """Expand directories to files and deduplicate.
+
+    If *paths* is empty, scan default directories (src, tests, examples)
+    and common config files in the current working directory.
+    Directories are expanded recursively (hidden files/dirs and binary
+    files are skipped).
+    """
+    if not paths:
+        return _default_project_files()
+
+    result: list[Path] = []
+    for p in paths:
+        if p.is_dir():
+            result.extend(_walk_dir(p))
+        else:
+            result.append(p)
+    return result
+
+
+def _default_project_files() -> list[Path]:
+    """Collect files from default project directories and root config files."""
+    cwd = Path.cwd()
+    files: list[Path] = []
+
+    for dirname in _DEFAULT_DIRS:
+        d = cwd / dirname
+        if d.is_dir():
+            files.extend(_walk_dir(d))
+
+    for pattern in _DEFAULT_GLOBS:
+        files.extend(sorted(cwd.glob(pattern)))
+
+    return files
+
+
+_SKIP_SUFFIXES = frozenset({
+    # Python bytecode
+    ".pyc", ".pyo",
+    # Images
+    ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".svg", ".webp",
+    # Fonts
+    ".ttf", ".otf", ".woff", ".woff2", ".eot",
+    # Archives
+    ".zip", ".tar", ".gz", ".bz2", ".xz", ".7z",
+    # Compiled / binary
+    ".so", ".dylib", ".dll", ".exe", ".o", ".a", ".whl", ".egg",
+    # Media
+    ".mp3", ".mp4", ".wav", ".avi", ".mov", ".flac", ".ogg",
+    # Documents
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+    # Data
+    ".db", ".sqlite", ".sqlite3", ".pickle", ".pkl",
+})
+
+_SKIP_DIRS = frozenset({
+    "__pycache__", "node_modules", ".git", ".venv", "venv",
+    ".tox", ".mypy_cache", ".pytest_cache", ".ruff_cache",
+    "dist", "build", "*.egg-info",
+})
+
+
+def _walk_dir(directory: Path) -> list[Path]:
+    """Recursively yield non-hidden, non-binary files under *directory*."""
+    files: list[Path] = []
+    for entry in sorted(directory.iterdir()):
+        if entry.name.startswith("."):
+            continue
+        if entry.is_dir():
+            if entry.name in _SKIP_DIRS or entry.name.endswith(".egg-info"):
+                continue
+            files.extend(_walk_dir(entry))
+        elif entry.is_file():
+            if entry.suffix.lower() in _SKIP_SUFFIXES:
+                continue
+            files.append(entry)
+    return files
+
+
 def check_paths(
     paths: list[Path],
     *,
@@ -285,12 +368,21 @@ def check_paths(
     dangerous: dict[int, str] | None = None,
 ) -> int:
     """Check multiple files. Returns 0 if all clean, 1 if any have problems."""
+    resolved = _resolve_paths(paths)
+    if not resolved:
+        print("No files to check.")
+        return 0
+
     has_error = False
-    for path in paths:
+    checked = 0
+    for path in resolved:
         problems = check_file(path, extra_ranges=extra_ranges, dangerous=dangerous)
+        checked += 1
         if problems:
             has_error = True
             print(f"\n{path} contains illegal characters:")
             for p in problems:
                 print(f"  {p}")
+    if not has_error:
+        print(f"All {checked} files passed.")
     return 1 if has_error else 0

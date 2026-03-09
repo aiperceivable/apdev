@@ -21,11 +21,24 @@ pip install apdev[dev]
 Validate that files contain only allowed characters (ASCII, common emoji, and technical symbols like arrows and box-drawing characters).
 
 ```bash
+# Check all git-tracked files (no arguments)
+apdev check-chars
+
+# Check a directory recursively
+apdev check-chars src/
+
 # Check specific files
 apdev check-chars src/mypackage/*.py
 
-# Use with pre-commit (see below)
+# Enable extra charset (e.g. Chinese characters)
+apdev check-chars --charset chinese src/
 ```
+
+Options:
+
+- `--charset <name>` — Enable a built-in charset preset (repeatable, e.g. `chinese`)
+- `--charset-file <path>` — Load a custom charset JSON file (repeatable)
+- Environment variable `APDEV_EXTRA_CHARS` — Comma-separated list of charset names or file paths, used when no `--charset`/`--charset-file` is given
 
 ### check-imports
 
@@ -35,7 +48,7 @@ Detect circular imports in a Python package.
 # Specify package explicitly
 apdev check-imports --package mypackage --src-dir src
 
-# Or configure in pyproject.toml (see below)
+# Or configure in pyproject.toml (see Configuration below)
 apdev check-imports
 ```
 
@@ -69,12 +82,19 @@ PROJECT_NAME=mypackage GITHUB_REPO=owner/repo apdev release
 
 ## Configuration
 
-Add to your project's `pyproject.toml`:
+Add to your project's `pyproject.toml` so commands can run without CLI arguments:
 
 ```toml
 [tool.apdev]
-base_package = "mypackage"
-src_dir = "src"
+base_package = "mypackage"   # Required by check-imports
+src_dir = "src"              # Source directory (default: "src")
+```
+
+With this config, both commands work out of the box:
+
+```bash
+apdev check-chars    # Checks all git-tracked files
+apdev check-imports  # Reads base_package / src_dir from pyproject.toml
 ```
 
 ## Pre-commit Integration
