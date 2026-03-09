@@ -1,6 +1,6 @@
 {
   "name": "apdev-js",
-  "version": "0.2.2",
+  "version": "0.2.1",
   "description": "General-purpose development tools for TypeScript/JavaScript projects - character validation, circular import detection, and more",
   "type": "module",
   "main": "./dist/index.cjs",
