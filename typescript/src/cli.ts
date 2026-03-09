@@ -47,7 +47,7 @@ export function buildProgram(): Command {
   program
     .command("check-chars")
     .description("Validate files contain only allowed characters")
-    .argument("<files...>", "Files to check")
+    .argument("[files...]", "Files or directories to check (defaults to src/, tests/, examples/ and config files)")
     .option("--charset <name>", "Extra charset preset (repeatable)", collect, [])
     .option("--charset-file <path>", "Custom charset JSON file (repeatable)", collect, [])
     .action((files: string[], opts: { charset: string[]; charsetFile: string[] }) => {

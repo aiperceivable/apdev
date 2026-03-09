@@ -21,7 +21,7 @@ pip install apdev[dev]
 Validate that files contain only allowed characters (ASCII, common emoji, and technical symbols like arrows and box-drawing characters).
 
 ```bash
-# Check all git-tracked files (no arguments)
+# Check default project directories (src/, tests/, examples/) and config files
 apdev check-chars
 
 # Check a directory recursively
@@ -93,7 +93,7 @@ src_dir = "src"              # Source directory (default: "src")
 With this config, both commands work out of the box:
 
 ```bash
-apdev check-chars    # Checks all git-tracked files
+apdev check-chars    # Checks default project directories and config files
 apdev check-imports  # Reads base_package / src_dir from pyproject.toml
 ```
 

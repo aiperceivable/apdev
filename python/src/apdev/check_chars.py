@@ -340,7 +340,7 @@ _SKIP_SUFFIXES = frozenset({
 _SKIP_DIRS = frozenset({
     "__pycache__", "node_modules", ".git", ".venv", "venv",
     ".tox", ".mypy_cache", ".pytest_cache", ".ruff_cache",
-    "dist", "build", "*.egg-info",
+    "dist", "build",
 })
 
 

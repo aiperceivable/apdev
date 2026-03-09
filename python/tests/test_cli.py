@@ -176,6 +176,32 @@ def test_cli_check_chars_directory_clean(tmp_path: Path) -> None:
     assert result.returncode == 0
 
 
+def test_cli_check_chars_skips_binary_files(tmp_path: Path) -> None:
+    """apdev check-chars skips binary files like .pyc when scanning a directory."""
+    sub = tmp_path / "pkg"
+    sub.mkdir()
+    (sub / "ok.py").write_text("x = 1\n")
+    (sub / "bad.pyc").write_bytes(b"\xcb\x00\x00\x00")
+
+    result = run_apdev("check-chars", str(sub))
+    assert result.returncode == 0
+    assert "bad.pyc" not in result.stdout
+
+
+def test_cli_check_chars_skips_hidden_dirs(tmp_path: Path) -> None:
+    """apdev check-chars skips hidden directories when scanning."""
+    sub = tmp_path / "pkg"
+    sub.mkdir()
+    (sub / "ok.py").write_text("x = 1\n")
+    hidden = sub / ".hidden"
+    hidden.mkdir()
+    (hidden / "bad.py").write_text("x = '\u4e2d'\n")
+
+    result = run_apdev("check-chars", str(sub))
+    assert result.returncode == 0
+    assert ".hidden" not in result.stdout
+
+
 def test_cli_check_chars_charset_file(tmp_path: Path) -> None:
     """--charset-file with custom JSON allows specified ranges."""
     custom = tmp_path / "custom.json"

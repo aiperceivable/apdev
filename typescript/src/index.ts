@@ -2,7 +2,7 @@
  * apdev - Shared development tools for TypeScript/JavaScript projects.
  */
 
-export { isAllowedChar, isDangerousChar, checkFile, checkPaths, loadCharset, resolveCharsets } from "./check-chars.js";
+export { isAllowedChar, isDangerousChar, checkFile, checkPaths, resolvePaths, loadCharset, resolveCharsets } from "./check-chars.js";
 export { checkCircularImports, findCycles, buildDependencyGraph, fileToModule } from "./check-imports.js";
 export { loadConfig } from "./config.js";
 

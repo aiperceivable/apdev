@@ -8,7 +8,7 @@
  * (Trojan Source - CVE-2021-42574) while allowing them in comments.
  */
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { extname, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -358,6 +358,118 @@ export function checkFile(
   return problems;
 }
 
+const SKIP_SUFFIXES = new Set([
+  // Bytecode
+  ".pyc", ".pyo",
+  // Images
+  ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".svg", ".webp",
+  // Fonts
+  ".ttf", ".otf", ".woff", ".woff2", ".eot",
+  // Archives
+  ".zip", ".tar", ".gz", ".bz2", ".xz", ".7z",
+  // Compiled / binary
+  ".so", ".dylib", ".dll", ".exe", ".o", ".a", ".whl", ".egg",
+  // Media
+  ".mp3", ".mp4", ".wav", ".avi", ".mov", ".flac", ".ogg",
+  // Documents
+  ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+  // Data
+  ".db", ".sqlite", ".sqlite3", ".pickle", ".pkl",
+]);
+
+const SKIP_DIRS = new Set([
+  "__pycache__", "node_modules", ".git", ".venv", "venv",
+  ".tox", ".mypy_cache", ".pytest_cache", ".ruff_cache",
+  "dist", "build",
+]);
+
+const DEFAULT_DIRS = ["src", "tests", "examples"];
+const DEFAULT_GLOBS = ["*.md", "*.yml", "*.yaml", "*.json", ".gitignore"];
+
+function walkDir(directory: string): string[] {
+  const files: string[] = [];
+  let entries: string[];
+  try {
+    entries = readdirSync(directory).sort();
+  } catch {
+    return files;
+  }
+  for (const name of entries) {
+    if (name.startsWith(".")) continue;
+    const fullPath = join(directory, name);
+    let stat;
+    try {
+      stat = statSync(fullPath);
+    } catch {
+      continue;
+    }
+    if (stat.isDirectory()) {
+      if (SKIP_DIRS.has(name) || name.endsWith(".egg-info")) continue;
+      files.push(...walkDir(fullPath));
+    } else if (stat.isFile()) {
+      if (SKIP_SUFFIXES.has(extname(name).toLowerCase())) continue;
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
+function defaultProjectFiles(): string[] {
+  const cwd = process.cwd();
+  const files: string[] = [];
+
+  for (const dirname of DEFAULT_DIRS) {
+    const d = join(cwd, dirname);
+    if (existsSync(d) && statSync(d).isDirectory()) {
+      files.push(...walkDir(d));
+    }
+  }
+
+  for (const pattern of DEFAULT_GLOBS) {
+    if (pattern.startsWith("*.")) {
+      // Simple suffix match in cwd
+      const suffix = pattern.slice(1); // e.g. ".md"
+      try {
+        for (const name of readdirSync(cwd).sort()) {
+          if (name.endsWith(suffix) && statSync(join(cwd, name)).isFile()) {
+            files.push(join(cwd, name));
+          }
+        }
+      } catch {
+        // ignore
+      }
+    } else {
+      // Exact filename like .gitignore
+      const fullPath = join(cwd, pattern);
+      if (existsSync(fullPath) && statSync(fullPath).isFile()) {
+        files.push(fullPath);
+      }
+    }
+  }
+
+  return files;
+}
+
+export function resolvePaths(paths: string[]): string[] {
+  if (paths.length === 0) {
+    return defaultProjectFiles();
+  }
+
+  const result: string[] = [];
+  for (const p of paths) {
+    try {
+      if (statSync(p).isDirectory()) {
+        result.push(...walkDir(p));
+      } else {
+        result.push(p);
+      }
+    } catch {
+      result.push(p); // let checkFile handle missing files
+    }
+  }
+  return result;
+}
+
 /**
  * Check multiple files. Returns 0 if all clean, 1 if any have problems.
  */
@@ -366,9 +478,17 @@ export function checkPaths(
   extraRanges?: [number, number][],
   dangerousMap?: Map<number, string>,
 ): number {
+  const resolved = resolvePaths(paths);
+  if (resolved.length === 0) {
+    console.log("No files to check.");
+    return 0;
+  }
+
   let hasError = false;
-  for (const path of paths) {
+  let checked = 0;
+  for (const path of resolved) {
     const problems = checkFile(path, 5, extraRanges, dangerousMap);
+    checked++;
     if (problems.length > 0) {
       hasError = true;
       console.log(`\n${path} contains illegal characters:`);
@@ -376,6 +496,9 @@ export function checkPaths(
         console.log(`  ${p}`);
       }
     }
+  }
+  if (!hasError) {
+    console.log(`All ${checked} files passed.`);
   }
   return hasError ? 1 : 0;
 }

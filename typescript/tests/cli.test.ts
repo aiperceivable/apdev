@@ -134,6 +134,114 @@ describe("CLI", () => {
     expect(result.status).toBe(0);
   });
 
+  it("check-chars with directory recursively checks files", () => {
+    const dir = makeTmpDir();
+    const sub = join(dir, "pkg");
+    mkdirSync(sub);
+    writeFileSync(join(sub, "a.ts"), "const x = 1;\n");
+    writeFileSync(join(sub, "b.ts"), "const x = '\u4E2D';\n");
+
+    const result = runApdev("check-chars", sub);
+    expect(result.status).toBe(1);
+    expect(result.stdout.toLowerCase()).toContain("illegal characters");
+  });
+
+  it("check-chars with clean directory returns 0", () => {
+    const dir = makeTmpDir();
+    const sub = join(dir, "pkg");
+    mkdirSync(sub);
+    writeFileSync(join(sub, "a.ts"), "const x = 1;\n");
+
+    const result = runApdev("check-chars", sub);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("All 1 files passed.");
+  });
+
+  it("check-chars skips binary files in directories", () => {
+    const dir = makeTmpDir();
+    const sub = join(dir, "pkg");
+    mkdirSync(sub);
+    writeFileSync(join(sub, "ok.ts"), "const x = 1;\n");
+    writeFileSync(join(sub, "bad.pyc"), Buffer.from([0xcb, 0x00, 0x00, 0x00]));
+
+    const result = runApdev("check-chars", sub);
+    expect(result.status).toBe(0);
+    expect(result.stdout).not.toContain("bad.pyc");
+  });
+
+  it("check-chars skips hidden directories", () => {
+    const dir = makeTmpDir();
+    const sub = join(dir, "pkg");
+    mkdirSync(sub);
+    writeFileSync(join(sub, "ok.ts"), "const x = 1;\n");
+    const hidden = join(sub, ".hidden");
+    mkdirSync(hidden);
+    writeFileSync(join(hidden, "bad.ts"), "const x = '\u4E2D';\n");
+
+    const result = runApdev("check-chars", sub);
+    expect(result.status).toBe(0);
+    expect(result.stdout).not.toContain(".hidden");
+  });
+
+  it("check-chars no args scans default dirs", () => {
+    const dir = makeTmpDir();
+    const src = join(dir, "src", "pkg");
+    mkdirSync(src, { recursive: true });
+    writeFileSync(join(src, "a.ts"), "const x = 1;\n");
+    const tests = join(dir, "tests");
+    mkdirSync(tests);
+    writeFileSync(join(tests, "test_a.ts"), "const y = 2;\n");
+    writeFileSync(join(dir, "README.md"), "hello\n");
+
+    try {
+      const stdout = execFileSync("node", [CLI_PATH, "check-chars"], {
+        encoding: "utf-8",
+        cwd: dir,
+        timeout: 10000,
+      });
+      expect(stdout).toContain("All 3 files passed.");
+    } catch (e: unknown) {
+      const err = e as { status?: number };
+      expect(err.status).toBe(0);
+    }
+  });
+
+  it("check-chars no args detects bad files in default dirs", () => {
+    const dir = makeTmpDir();
+    const src = join(dir, "src");
+    mkdirSync(src);
+    writeFileSync(join(src, "bad.ts"), "const x = '\u4E2D';\n");
+
+    try {
+      execFileSync("node", [CLI_PATH, "check-chars"], {
+        encoding: "utf-8",
+        cwd: dir,
+        timeout: 10000,
+      });
+      expect.unreachable("Should have exited with non-zero");
+    } catch (e: unknown) {
+      const err = e as { status?: number; stdout?: string };
+      expect(err.status).toBe(1);
+      expect((err.stdout ?? "").toLowerCase()).toContain("illegal characters");
+    }
+  });
+
+  it("check-chars no args with empty project returns 0", () => {
+    const dir = makeTmpDir();
+
+    try {
+      const stdout = execFileSync("node", [CLI_PATH, "check-chars"], {
+        encoding: "utf-8",
+        cwd: dir,
+        timeout: 10000,
+      });
+      expect(stdout).toContain("No files to check");
+    } catch (e: unknown) {
+      const err = e as { status?: number };
+      expect(err.status).toBe(0);
+    }
+  });
+
   it("check-imports reads config from package.json", () => {
     const dir = makeTmpDir();
     const src = join(dir, "src", "mypkg");
