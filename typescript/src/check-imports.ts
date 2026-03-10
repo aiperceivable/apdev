@@ -7,7 +7,25 @@
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, sep, extname, basename } from "node:path";
-import ts from "typescript";
+import type { Node, Identifier } from "typescript";
+
+type TS = typeof import("typescript");
+
+let _ts: TS | undefined;
+
+async function loadTS(): Promise<TS> {
+  if (_ts) return _ts;
+  try {
+    _ts = (await import("typescript")).default as TS;
+    return _ts;
+  } catch {
+    throw new Error(
+      "The 'typescript' package is required for circular import detection.\n" +
+        "Install it with: npm install -g typescript\n" +
+        "Or locally:      npm install -D typescript",
+    );
+  }
+}
 
 const SUPPORTED_EXTENSIONS = new Set([
   ".ts",
@@ -44,7 +62,8 @@ export function fileToModule(filePath: string, srcDir: string): string {
 }
 
 /** Extract import specifiers from a TypeScript/JavaScript source file. */
-export function extractImports(source: string, fileName: string): Set<string> {
+export async function extractImports(source: string, fileName: string): Promise<Set<string>> {
+  const ts = await loadTS();
   const imports = new Set<string>();
 
   const sourceFile = ts.createSourceFile(
@@ -57,7 +76,7 @@ export function extractImports(source: string, fileName: string): Set<string> {
       : undefined,
   );
 
-  function visit(node: ts.Node): void {
+  function visit(node: Node): void {
     // import ... from 'x' / import 'x'
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
       imports.add(node.moduleSpecifier.text);
@@ -76,7 +95,7 @@ export function extractImports(source: string, fileName: string): Set<string> {
     if (
       ts.isCallExpression(node) &&
       node.expression.kind === ts.SyntaxKind.Identifier &&
-      (node.expression as ts.Identifier).text === "require" &&
+      (node.expression as Identifier).text === "require" &&
       node.arguments.length === 1 &&
       ts.isStringLiteral(node.arguments[0])
     ) {
@@ -163,10 +182,10 @@ function findSourceFiles(dir: string): string[] {
 }
 
 /** Build a module-to-module dependency graph for the given package. */
-export function buildDependencyGraph(
+export async function buildDependencyGraph(
   srcDir: string,
   basePackage: string,
-): Map<string, Set<string>> {
+): Promise<Map<string, Set<string>>> {
   const graph = new Map<string, Set<string>>();
   const files = findSourceFiles(srcDir);
 
@@ -184,7 +203,7 @@ export function buildDependencyGraph(
 
     let rawImports: Set<string>;
     try {
-      rawImports = extractImports(source, file);
+      rawImports = await extractImports(source, file);
     } catch (e) {
       console.error(`Warning: could not parse ${file}: ${e}`);
       continue;
@@ -260,10 +279,10 @@ export function findCycles(
 }
 
 /** Run circular import detection. Returns 0 if clean, 1 if cycles found. */
-export function checkCircularImports(
+export async function checkCircularImports(
   srcDir: string,
   basePackage: string,
-): number {
+): Promise<number> {
   let stat;
   try {
     stat = statSync(srcDir);
@@ -276,7 +295,7 @@ export function checkCircularImports(
     return 1;
   }
 
-  const graph = buildDependencyGraph(srcDir, basePackage);
+  const graph = await buildDependencyGraph(srcDir, basePackage);
   console.log(`Scanned ${graph.size} modules`);
 
   const cycles = findCycles(graph);

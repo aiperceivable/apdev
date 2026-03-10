@@ -27,31 +27,31 @@ describe("fileToModule", () => {
 });
 
 describe("extractImports", () => {
-  it("collects ES module import statements", () => {
+  it("collects ES module import statements", async () => {
     const source = `
       import os from 'os';
       import { something } from 'pkg/sub';
     `;
-    const imports = extractImports(source, "test.ts");
+    const imports = await extractImports(source, "test.ts");
     expect(imports.has("os")).toBe(true);
     expect(imports.has("pkg/sub")).toBe(true);
   });
 
-  it("collects from...import statements", () => {
+  it("collects from...import statements", async () => {
     const source = "import { something } from 'pkg/sub';";
-    const imports = extractImports(source, "test.ts");
+    const imports = await extractImports(source, "test.ts");
     expect(imports.has("pkg/sub")).toBe(true);
   });
 
-  it("collects require() calls", () => {
+  it("collects require() calls", async () => {
     const source = "const x = require('pkg/sub');";
-    const imports = extractImports(source, "test.js");
+    const imports = await extractImports(source, "test.js");
     expect(imports.has("pkg/sub")).toBe(true);
   });
 
-  it("collects export...from re-exports", () => {
+  it("collects export...from re-exports", async () => {
     const source = "export { foo } from 'pkg/sub';";
-    const imports = extractImports(source, "test.ts");
+    const imports = await extractImports(source, "test.ts");
     expect(imports.has("pkg/sub")).toBe(true);
   });
 });
@@ -91,7 +91,7 @@ describe("resolveImports", () => {
 });
 
 describe("buildDependencyGraph", () => {
-  it("builds graph with no circular imports", () => {
+  it("builds graph with no circular imports", async () => {
     const dir = makeTmpDir();
     const pkg = join(dir, "mypkg");
     mkdirSync(pkg);
@@ -99,12 +99,12 @@ describe("buildDependencyGraph", () => {
     writeFileSync(join(pkg, "a.ts"), "import { something } from 'mypkg/b';\n");
     writeFileSync(join(pkg, "b.ts"), "import os from 'os';\n");
 
-    const graph = buildDependencyGraph(dir, "mypkg");
+    const graph = await buildDependencyGraph(dir, "mypkg");
     expect(graph.get("mypkg.a")?.has("mypkg.b")).toBe(true);
     expect(graph.get("mypkg.b")?.size ?? 0).toBe(0);
   });
 
-  it("detects circular imports", () => {
+  it("detects circular imports", async () => {
     const dir = makeTmpDir();
     const pkg = join(dir, "mypkg");
     mkdirSync(pkg);
@@ -112,7 +112,7 @@ describe("buildDependencyGraph", () => {
     writeFileSync(join(pkg, "a.ts"), "import { something } from 'mypkg/b';\n");
     writeFileSync(join(pkg, "b.ts"), "import { something } from 'mypkg/a';\n");
 
-    const graph = buildDependencyGraph(dir, "mypkg");
+    const graph = await buildDependencyGraph(dir, "mypkg");
     const cycles = findCycles(graph);
     expect(cycles).toHaveLength(1);
     const cycleModules = new Set(cycles[0].slice(0, -1));
@@ -121,7 +121,7 @@ describe("buildDependencyGraph", () => {
 
   // --- Relative import tests ---
 
-  it("detects circular relative imports (./)", () => {
+  it("detects circular relative imports (./)", async () => {
     const dir = makeTmpDir();
     const pkg = join(dir, "mypkg");
     mkdirSync(pkg);
@@ -129,7 +129,7 @@ describe("buildDependencyGraph", () => {
     writeFileSync(join(pkg, "a.ts"), "import { something } from './b';\n");
     writeFileSync(join(pkg, "b.ts"), "import { something } from './a';\n");
 
-    const graph = buildDependencyGraph(dir, "mypkg");
+    const graph = await buildDependencyGraph(dir, "mypkg");
     expect(graph.get("mypkg.a")?.has("mypkg.b")).toBe(true);
     expect(graph.get("mypkg.b")?.has("mypkg.a")).toBe(true);
 
@@ -139,7 +139,7 @@ describe("buildDependencyGraph", () => {
     expect(cycleModules).toEqual(new Set(["mypkg.a", "mypkg.b"]));
   });
 
-  it("resolves relative imports without cycle", () => {
+  it("resolves relative imports without cycle", async () => {
     const dir = makeTmpDir();
     const pkg = join(dir, "mypkg");
     mkdirSync(pkg);
@@ -147,12 +147,12 @@ describe("buildDependencyGraph", () => {
     writeFileSync(join(pkg, "a.ts"), "import { something } from './b';\n");
     writeFileSync(join(pkg, "b.ts"), "import os from 'os';\n");
 
-    const graph = buildDependencyGraph(dir, "mypkg");
+    const graph = await buildDependencyGraph(dir, "mypkg");
     expect(graph.get("mypkg.a")?.has("mypkg.b")).toBe(true);
     expect(findCycles(graph)).toEqual([]);
   });
 
-  it("detects relative import cycles in sub-packages", () => {
+  it("detects relative import cycles in sub-packages", async () => {
     const dir = makeTmpDir();
     const pkg = join(dir, "mypkg");
     mkdirSync(pkg);
@@ -163,7 +163,7 @@ describe("buildDependencyGraph", () => {
     writeFileSync(join(sub, "a.ts"), "import { something } from './b';\n");
     writeFileSync(join(sub, "b.ts"), "import { something } from './a';\n");
 
-    const graph = buildDependencyGraph(dir, "mypkg");
+    const graph = await buildDependencyGraph(dir, "mypkg");
     expect(graph.get("mypkg.sub.a")?.has("mypkg.sub.b")).toBe(true);
     expect(graph.get("mypkg.sub.b")?.has("mypkg.sub.a")).toBe(true);
 

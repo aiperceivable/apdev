@@ -81,7 +81,7 @@ export function buildProgram(): Command {
     .description("Detect circular imports in a JS/TS package")
     .option("--package <name>", "Base package name (e.g. mylib). Reads from package.json apdev config if omitted.")
     .option("--src-dir <dir>", "Source directory containing the package (default: src)")
-    .action((opts: { package?: string; srcDir?: string }) => {
+    .action(async (opts: { package?: string; srcDir?: string }) => {
       const config = loadConfig();
       const basePackage = opts.package ?? (config["base_package"] as string | undefined);
       const srcDir = opts.srcDir ?? (config["src_dir"] as string | undefined) ?? "src";
@@ -93,7 +93,7 @@ export function buildProgram(): Command {
         process.exit(1);
       }
 
-      const code = checkCircularImports(resolve(srcDir), basePackage);
+      const code = await checkCircularImports(resolve(srcDir), basePackage);
       process.exit(code);
     });
 
