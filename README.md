@@ -8,6 +8,7 @@ General-purpose development tools for quality assurance, character validation, a
 | -------- | ------- | ------ |
 | Python   | [`apdev`](python/) | Beta |
 | TypeScript | [`@aipartnerup/apdev`](typescript/) | Beta |
+| Rust     | [`apdev`](rust/) | Beta |
 | Go       | `github.com/aipartnerup/apdev/go` | Planned |
 
 ## Available Tools

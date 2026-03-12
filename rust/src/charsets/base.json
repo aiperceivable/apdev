@@ -1,0 +1,44 @@
+{
+  "name": "base",
+  "description": "Default: ASCII + emoji + technical symbols",
+  "emoji_ranges": [
+    { "start": "0x1F300", "end": "0x1F5FF", "name": "Symbols and Pictographs" },
+    { "start": "0x1F600", "end": "0x1F64F", "name": "Emoticons" },
+    { "start": "0x1F680", "end": "0x1F6FF", "name": "Transport and Map Symbols" },
+    { "start": "0x1F780", "end": "0x1F7FF", "name": "Geometric Shapes Extended" },
+    { "start": "0x1F900", "end": "0x1F9FF", "name": "Supplemental Symbols and Pictographs" },
+    { "start": "0x2600", "end": "0x26FF", "name": "Miscellaneous Symbols" },
+    { "start": "0x2700", "end": "0x27BF", "name": "Dingbats" }
+  ],
+  "extra_ranges": [
+    { "start": "0x0080", "end": "0x00FF", "name": "Latin-1 Supplement" },
+    { "start": "0x2000", "end": "0x206F", "name": "General Punctuation" },
+    { "start": "0x2100", "end": "0x214F", "name": "Letterlike Symbols" },
+    { "start": "0x2190", "end": "0x21FF", "name": "Arrows" },
+    { "start": "0x2200", "end": "0x22FF", "name": "Mathematical Operators" },
+    { "start": "0x2300", "end": "0x23FF", "name": "Miscellaneous Technical" },
+    { "start": "0x2500", "end": "0x257F", "name": "Box Drawing" },
+    { "start": "0x2580", "end": "0x259F", "name": "Block Elements" },
+    { "start": "0x25A0", "end": "0x25FF", "name": "Geometric Shapes" },
+    { "start": "0x2800", "end": "0x28FF", "name": "Braille Patterns" },
+    { "start": "0x2B00", "end": "0x2BFF", "name": "Miscellaneous Symbols and Arrows" },
+    { "start": "0xFE00", "end": "0xFE0F", "name": "Variation Selectors" }
+  ],
+  "dangerous": [
+    { "code": "0x202A", "name": "LEFT-TO-RIGHT EMBEDDING" },
+    { "code": "0x202B", "name": "RIGHT-TO-LEFT EMBEDDING" },
+    { "code": "0x202C", "name": "POP DIRECTIONAL FORMATTING" },
+    { "code": "0x202D", "name": "LEFT-TO-RIGHT OVERRIDE" },
+    { "code": "0x202E", "name": "RIGHT-TO-LEFT OVERRIDE" },
+    { "code": "0x2066", "name": "LEFT-TO-RIGHT ISOLATE" },
+    { "code": "0x2067", "name": "RIGHT-TO-LEFT ISOLATE" },
+    { "code": "0x2068", "name": "FIRST STRONG ISOLATE" },
+    { "code": "0x2069", "name": "POP DIRECTIONAL ISOLATE" },
+    { "code": "0x200B", "name": "ZERO WIDTH SPACE" },
+    { "code": "0x200C", "name": "ZERO WIDTH NON-JOINER" },
+    { "code": "0x200D", "name": "ZERO WIDTH JOINER" },
+    { "code": "0x200E", "name": "LEFT-TO-RIGHT MARK" },
+    { "code": "0x200F", "name": "RIGHT-TO-LEFT MARK" },
+    { "code": "0x2060", "name": "WORD JOINER" }
+  ]
+}
