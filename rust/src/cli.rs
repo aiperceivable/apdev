@@ -4,11 +4,9 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use crate::check_chars::{check_paths, resolve_charsets};
-use crate::check_imports::check_circular_imports;
-use crate::config::load_config;
 
 #[derive(Parser)]
-#[command(name = "apdev", about = "Shared development tools", version)]
+#[command(name = "apdev-rs", about = "Shared development tools for Rust projects", version)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -28,17 +26,6 @@ enum Commands {
         /// Path to custom charset JSON file (repeatable)
         #[arg(long = "charset-file", action = clap::ArgAction::Append)]
         charset_files: Vec<String>,
-    },
-
-    /// Detect circular imports in a Python package
-    CheckImports {
-        /// Base package name. Reads from [tool.apdev] if omitted.
-        #[arg(long = "package")]
-        base_package: Option<String>,
-
-        /// Source directory containing the package (default: src)
-        #[arg(long = "src-dir")]
-        src_dir: Option<String>,
     },
 
     /// Interactive release automation (build, tag, GitHub release, upload)
@@ -93,27 +80,6 @@ pub fn run() -> i32 {
             };
 
             check_paths(files, &extra_ranges, &dangerous)
-        }
-
-        Some(Commands::CheckImports {
-            base_package,
-            src_dir,
-        }) => {
-            let config = load_config();
-            let base_package = base_package.or_else(|| config.get("base_package").cloned());
-            let src_dir_str = src_dir
-                .or_else(|| config.get("src_dir").cloned())
-                .unwrap_or_else(|| "src".to_string());
-
-            match base_package {
-                None => {
-                    eprintln!(
-                        "Error: --package is required (or set base_package in [tool.apdev])"
-                    );
-                    1
-                }
-                Some(pkg) => check_circular_imports(PathBuf::from(src_dir_str), &pkg),
-            }
         }
 
         Some(Commands::Release { yes, version }) => {

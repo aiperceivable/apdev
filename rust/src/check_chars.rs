@@ -310,7 +310,7 @@ pub fn check_file(
 
     let comment_mask: Vec<bool> = match suffix.as_str() {
         "py" => compute_comment_mask_python(&chars),
-        "js" | "ts" | "tsx" | "jsx" | "mjs" | "cjs" => compute_comment_mask_js(&chars),
+        "js" | "ts" | "tsx" | "jsx" | "mjs" | "cjs" | "rs" => compute_comment_mask_js(&chars),
         _ => vec![false; chars.len()],
     };
 
@@ -376,6 +376,7 @@ const SKIP_DIRS: &[&str] = &[
     ".ruff_cache",
     "dist",
     "build",
+    "target",
 ];
 
 fn should_skip_suffix(path: &Path) -> bool {
@@ -571,6 +572,20 @@ mod tests {
     fn test_dangerous_char_in_js_line_comment_allowed() {
         let content = "const x = 1;\n// \u{202E} bidi\n";
         let problems = check_content(content, ".js");
+        assert!(problems.is_empty());
+    }
+
+    #[test]
+    fn test_dangerous_char_in_rust_line_comment_allowed() {
+        let content = "let x = 1;\n// \u{202E} bidi\n";
+        let problems = check_content(content, ".rs");
+        assert!(problems.is_empty());
+    }
+
+    #[test]
+    fn test_dangerous_char_in_rust_block_comment_allowed() {
+        let content = "/* \u{202E} bidi */ let x = 1;\n";
+        let problems = check_content(content, ".rs");
         assert!(problems.is_empty());
     }
 

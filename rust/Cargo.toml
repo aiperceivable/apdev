@@ -1,23 +1,22 @@
 [package]
-name = "apdev"
+name = "apdev-rs"
 version = "0.1.0"
 edition = "2021"
-description = "Shared development tools - character validation, circular import detection, and more"
+description = "Shared development tools for Rust projects - character validation, release automation, and more"
 license = "Apache-2.0"
 authors = ["aipartnerup <tercel.yi@gmail.com>"]
-keywords = ["development-tools", "linting", "character-validation", "circular-imports", "unicode-checker"]
+keywords = ["development-tools", "linting", "character-validation", "release-automation", "unicode-checker"]
 categories = ["command-line-utilities", "development-tools"]
 repository = "https://github.com/aipartnerup/apdev"
 
 [[bin]]
-name = "apdev"
+name = "apdev-rs"
 path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-toml = "0.8"
 
 [dev-dependencies]
 tempfile = "3"
