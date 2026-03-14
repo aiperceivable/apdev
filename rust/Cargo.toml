@@ -1,6 +1,6 @@
 [package]
 name = "apdev-rs"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Shared development tools for Rust projects - character validation, release automation, and more"
 license = "Apache-2.0"
@@ -17,6 +17,4 @@ path = "src/main.rs"
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-
-[dev-dependencies]
 tempfile = "3"

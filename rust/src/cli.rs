@@ -1,9 +1,12 @@
 use clap::{Parser, Subcommand};
 use std::env;
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 
 use crate::check_chars::{check_paths, resolve_charsets};
+
+const RELEASE_SCRIPT: &str = include_str!("../release.sh");
 
 #[derive(Parser)]
 #[command(name = "apdev-rs", about = "Shared development tools for Rust projects", version)]
@@ -83,15 +86,25 @@ pub fn run() -> i32 {
         }
 
         Some(Commands::Release { yes, version }) => {
-            // Look for release.sh in current directory
-            let script = PathBuf::from("release.sh");
-            if !script.is_file() {
-                eprintln!("Error: release.sh not found in current directory");
-                eprintln!("Hint: copy the release.sh from the rust/ directory of apdev");
+            if !PathBuf::from("Cargo.toml").is_file() {
+                eprintln!("Error: Cargo.toml not found in current directory");
+                eprintln!("Hint: run `apdev-rs release` from your project root");
+                return 1;
+            }
+            // Write embedded release.sh to a temp file and execute it
+            let mut tmp = match tempfile::NamedTempFile::new() {
+                Ok(f) => f,
+                Err(e) => {
+                    eprintln!("Error creating temp file: {}", e);
+                    return 1;
+                }
+            };
+            if let Err(e) = tmp.write_all(RELEASE_SCRIPT.as_bytes()) {
+                eprintln!("Error writing release script: {}", e);
                 return 1;
             }
             let mut cmd = Command::new("bash");
-            cmd.arg(&script);
+            cmd.arg(tmp.path());
             if yes {
                 cmd.arg("--yes");
             }
