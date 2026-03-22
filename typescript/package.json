@@ -1,6 +1,6 @@
 {
   "name": "apdev-js",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "General-purpose development tools for TypeScript/JavaScript projects - character validation, circular import detection, and more",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -42,16 +42,16 @@
     "typescript",
     "javascript"
   ],
-  "author": "aipartnerup <tercel.yi@gmail.com>",
+  "author": "aiperceivable <tercel.yi@gmail.com>",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/aipartnerup/apdev",
+    "url": "https://github.com/aiperceivable/apdev",
     "directory": "typescript"
   },
-  "homepage": "https://aipartnerup.com",
+  "homepage": "https://aiperceivable.com",
   "bugs": {
-    "url": "https://github.com/aipartnerup/apdev/issues"
+    "url": "https://github.com/aiperceivable/apdev/issues"
   },
   "dependencies": {
     "commander": "^13.0.0"

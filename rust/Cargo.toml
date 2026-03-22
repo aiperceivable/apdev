@@ -1,13 +1,13 @@
 [package]
 name = "apdev-rs"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "Shared development tools for Rust projects - character validation, release automation, and more"
 license = "Apache-2.0"
-authors = ["aipartnerup <tercel.yi@gmail.com>"]
+authors = ["aiperceivable <tercel.yi@gmail.com>"]
 keywords = ["development-tools", "linting", "character-validation", "release-automation", "unicode-checker"]
 categories = ["command-line-utilities", "development-tools"]
-repository = "https://github.com/aipartnerup/apdev"
+repository = "https://github.com/aiperceivable/apdev"
 
 [[bin]]
 name = "apdev-rs"

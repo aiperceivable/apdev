@@ -2,6 +2,11 @@
 
 All notable changes to apdev-rs will be documented in this file.
 
+## [0.2.1] - 2026-03-22
+
+### Changed
+- Rebrand: aipartnerup → aiperceivable
+
 ## [0.1.0] - 2026-03-13
 
 ### Added

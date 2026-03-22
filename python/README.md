@@ -101,7 +101,7 @@ apdev check-imports  # Reads base_package / src_dir from pyproject.toml
 
 ```yaml
 repos:
-  - repo: https://github.com/aipartnerup/apdev
+  - repo: https://github.com/aiperceivable/apdev
     rev: python/v0.1.0
     hooks:
       - id: check-chars
