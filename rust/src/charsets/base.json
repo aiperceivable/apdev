@@ -19,6 +19,7 @@
     { "start": "0x2300", "end": "0x23FF", "name": "Miscellaneous Technical" },
     { "start": "0x2500", "end": "0x257F", "name": "Box Drawing" },
     { "start": "0x2580", "end": "0x259F", "name": "Block Elements" },
+    { "start": "0x2460", "end": "0x24FF", "name": "Enclosed Alphanumerics" },
     { "start": "0x25A0", "end": "0x25FF", "name": "Geometric Shapes" },
     { "start": "0x2800", "end": "0x28FF", "name": "Braille Patterns" },
     { "start": "0x2B00", "end": "0x2BFF", "name": "Miscellaneous Symbols and Arrows" },
