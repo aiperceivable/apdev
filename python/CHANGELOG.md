@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## [0.2.5] - 2026-11-18
+
+### Changed
+
+- Refresh `uv.lock` (`pytest` 9.2.0, `coverage` 7.16.2, and other patch
+  updates). No public API changes.
+
+### Fixed
+
+- `apdev release` uses the project's `.venv` when invoked without an active
+  virtual environment, so it can find the project's Python and release tools.
+- `apdev.__version__` now matches the package version; it had drifted to
+  `0.2.3`.
+
 ## [0.2.4] - 2026-03-22
 
 ### Changed

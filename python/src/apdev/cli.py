@@ -150,7 +150,19 @@ def main(argv: list[str] | None = None) -> int:
             cmd.append("--yes")
         if args.version:
             cmd.append(args.version)
-        result = subprocess.run(cmd, env={**os.environ})
+        release_env = os.environ.copy()
+        project_venv = Path.cwd() / ".venv"
+        venv_bin = project_venv / "bin"
+        if (
+            not release_env.get("VIRTUAL_ENV")
+            and (project_venv / "pyvenv.cfg").is_file()
+            and os.access(venv_bin / "python", os.X_OK)
+        ):
+            release_env["VIRTUAL_ENV"] = str(project_venv)
+            release_env["PATH"] = os.pathsep.join(
+                (str(venv_bin), release_env.get("PATH") or os.defpath)
+            )
+        result = subprocess.run(cmd, env=release_env)
         return result.returncode
 
     return 0

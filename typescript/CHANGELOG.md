@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.5] - 2026-11-18
+
+### Changed
+
+- Refresh the development toolchain to `vitest` 5.1.0. No public API changes.
+
 ## [0.2.3] - 2026-03-22
 
 ### Changed

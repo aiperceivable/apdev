@@ -56,6 +56,8 @@ apdev check-imports
 
 Interactive release automation for publishing Python packages to PyPI and GitHub. Auto-detects project name from `pyproject.toml` and GitHub repo from git remote.
 
+From the project root, `apdev release` uses the project's `.venv` automatically when no virtual environment is active. Install `build`, `pip`, and `twine` in the environment used for release.
+
 ```bash
 # Run with auto-detected version from pyproject.toml
 apdev release

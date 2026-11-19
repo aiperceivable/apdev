@@ -5,6 +5,11 @@ import subprocess
 import sys
 import textwrap
 from pathlib import Path
+from unittest.mock import Mock
+
+import pytest
+
+from apdev import cli
 
 
 def run_apdev(*args: str, cwd: str | Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -24,6 +29,48 @@ def test_cli_help() -> None:
     assert "check-chars" in result.stdout
     assert "check-imports" in result.stdout
     assert "release" in result.stdout
+
+
+@pytest.mark.parametrize(
+    ("local_venv", "active_venv"), [(True, False), (True, True), (False, False)]
+)
+def test_cli_release_selects_project_virtualenv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, local_venv: bool, active_venv: bool
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    project_venv = Path.cwd() / ".venv"
+    if local_venv:
+        (project_venv / "bin").mkdir(parents=True)
+        (project_venv / "pyvenv.cfg").touch()
+        python = project_venv / "bin" / "python"
+        python.touch()
+        python.chmod(0o755)
+    original_path = os.defpath
+    if active_venv:
+        active_path = str(tmp_path / "active")
+        monkeypatch.setenv("VIRTUAL_ENV", active_path)
+        original_path = os.pathsep.join((str(Path(active_path) / "bin"), original_path))
+    else:
+        monkeypatch.delenv("VIRTUAL_ENV", raising=False)
+    monkeypatch.setenv("PATH", original_path)
+    run = Mock(return_value=subprocess.CompletedProcess(args=[], returncode=0))
+    monkeypatch.setattr(cli.subprocess, "run", run)
+
+    assert cli.main(["release", "--yes", "0.1.0"]) == 0
+
+    run.assert_called_once()
+    args = run.call_args.args[0]
+    assert args[0] == "bash"
+    assert args[2:] == ["--yes", "0.1.0"]
+    env = run.call_args.kwargs["env"]
+    if local_venv and not active_venv:
+        assert env["PATH"] == os.pathsep.join((str(project_venv / "bin"), original_path))
+        assert env["VIRTUAL_ENV"] == str(project_venv)
+        assert "VIRTUAL_ENV" not in os.environ
+    else:
+        assert env["PATH"] == original_path
+        assert env.get("VIRTUAL_ENV") == os.environ.get("VIRTUAL_ENV")
+    assert os.environ["PATH"] == original_path
 
 
 def test_cli_check_chars_clean(tmp_path: Path) -> None:

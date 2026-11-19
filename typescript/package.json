@@ -1,6 +1,6 @@
 {
   "name": "apdev-js",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "General-purpose development tools for TypeScript/JavaScript projects - character validation, circular import detection, and more",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -68,6 +68,6 @@
     "@types/node": "^22.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.0.0"
+    "vitest": "^5.1.0"
   }
 }
