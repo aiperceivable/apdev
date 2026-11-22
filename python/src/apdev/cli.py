@@ -86,6 +86,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Auto-accept all defaults (silent mode)",
     )
     release_parser.add_argument(
+        "--repository",
+        "-r",
+        dest="repository",
+        help=(
+            "Named .pypirc section to upload to (default: [tool.apdev] "
+            "pypi_repository, or 'pypi')"
+        ),
+    )
+    release_parser.add_argument(
         "version",
         nargs="?",
         help="Version to release (auto-detected from pyproject.toml if omitted)",
@@ -148,6 +157,9 @@ def main(argv: list[str] | None = None) -> int:
         cmd = ["bash", str(script)]
         if args.yes:
             cmd.append("--yes")
+        repository = args.repository or load_config().get("pypi_repository")
+        if repository:
+            cmd.extend(["--repository", str(repository)])
         if args.version:
             cmd.append(args.version)
         release_env = os.environ.copy()

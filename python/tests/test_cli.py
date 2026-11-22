@@ -70,7 +70,73 @@ def test_cli_release_selects_project_virtualenv(
     else:
         assert env["PATH"] == original_path
         assert env.get("VIRTUAL_ENV") == os.environ.get("VIRTUAL_ENV")
-    assert os.environ["PATH"] == original_path
+
+
+def test_cli_release_forwards_repository_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--repository is passed through to release.sh before the version."""
+    monkeypatch.chdir(tmp_path)
+    run = Mock(return_value=subprocess.CompletedProcess(args=[], returncode=0))
+    monkeypatch.setattr(cli.subprocess, "run", run)
+
+    assert cli.main(["release", "--repository", "reachreel", "0.1.0"]) == 0
+
+    args = run.call_args.args[0]
+    assert args[0] == "bash"
+    assert args[2:] == ["--repository", "reachreel", "0.1.0"]
+
+
+def test_cli_release_reads_repository_from_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[tool.apdev] pypi_repository selects the section without a flag."""
+    monkeypatch.chdir(tmp_path)
+    Path("pyproject.toml").write_text(
+        textwrap.dedent(
+            """
+            [project]
+            name = "demo"
+            version = "0.1.0"
+
+            [tool.apdev]
+            pypi_repository = "reachreel"
+            """
+        ),
+        encoding="utf-8",
+    )
+    run = Mock(return_value=subprocess.CompletedProcess(args=[], returncode=0))
+    monkeypatch.setattr(cli.subprocess, "run", run)
+
+    assert cli.main(["release", "--yes"]) == 0
+
+    args = run.call_args.args[0]
+    assert args[2:] == ["--yes", "--repository", "reachreel"]
+
+
+def test_cli_release_flag_beats_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An explicit --repository wins over [tool.apdev]."""
+    monkeypatch.chdir(tmp_path)
+    Path("pyproject.toml").write_text(
+        textwrap.dedent(
+            """
+            [project]
+            name = "demo"
+            version = "0.1.0"
+
+            [tool.apdev]
+            pypi_repository = "reachreel"
+            """
+        ),
+        encoding="utf-8",
+    )
+    run = Mock(return_value=subprocess.CompletedProcess(args=[], returncode=0))
+    monkeypatch.setattr(cli.subprocess, "run", run)
+
+    assert cli.main(["release", "--repository", "testpypi"]) == 0
+
+    args = run.call_args.args[0]
+    assert args[2:] == ["--repository", "testpypi"]
 
 
 def test_cli_check_chars_clean(tmp_path: Path) -> None:

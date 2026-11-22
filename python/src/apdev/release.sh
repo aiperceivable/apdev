@@ -6,19 +6,33 @@
 #         ./release.sh --yes 0.2.0    # silent mode with specific version
 #
 # Auto-detects project name from pyproject.toml and GitHub repo from git remote.
-# Override with environment variables: PROJECT_NAME, PACKAGE_NAME, GITHUB_REPO
+# Override with environment variables: PROJECT_NAME, PACKAGE_NAME, GITHUB_REPO,
+# PYPI_REPOSITORY (named .pypirc section, default "pypi").
 
 # Note: set -e is disabled to allow step-by-step execution
 # Individual steps will handle their own error handling
 
 # Silent mode flag (--yes or -y to auto-accept all defaults)
 SILENT=false
+PYPI_REPOSITORY="${PYPI_REPOSITORY:-}"
 POSITIONAL_ARGS=()
-for arg in "$@"; do
-    case "$arg" in
+while [ "$#" -gt 0 ]; do
+    case "$1" in
         --yes|-y) SILENT=true ;;
-        *) POSITIONAL_ARGS+=("$arg") ;;
+        --repository|-r)
+            if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+                echo "Error: --repository needs a .pypirc section name" >&2
+                exit 1
+            fi
+            PYPI_REPOSITORY="$2"
+            shift
+            ;;
+        --repository=*)
+            PYPI_REPOSITORY="${1#*=}"
+            ;;
+        *) POSITIONAL_ARGS+=("$1") ;;
     esac
+    shift
 done
 set -- "${POSITIONAL_ARGS[@]}"
 
@@ -58,6 +72,25 @@ if [ -z "$GITHUB_REPO" ]; then
     fi
 fi
 
+# PyPI repository: --repository, then PYPI_REPOSITORY, then [tool.apdev]
+# pypi_repository, then the default "pypi" section of ~/.pypirc.
+#
+# Parsed with awk instead of tomllib so the script works on any machine, even
+# one whose `python3` is older than 3.11.
+if [ -z "$PYPI_REPOSITORY" ] && [ -f pyproject.toml ]; then
+    PYPI_REPOSITORY=$(awk '
+        /^[[:space:]]*\[/ {
+            in_apdev = ($0 ~ /^[[:space:]]*\[tool\.apdev\][[:space:]]*$/)
+            next
+        }
+        in_apdev && /^[[:space:]]*pypi_repository[[:space:]]*=/ {
+            print
+            exit
+        }
+    ' pyproject.toml | sed -E 's/^[^=]*=[[:space:]]*//; s/[[:space:]]+$//; s/^"//; s/"$//; s/^\x27//; s/\x27$//')
+fi
+PYPI_REPOSITORY="${PYPI_REPOSITORY:-pypi}"
+
 # Get version from argument or pyproject.toml
 if [ -z "$1" ]; then
     VERSION=$(grep -E '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
@@ -77,6 +110,7 @@ echo -e "${CYAN}║  ${PROJECT_NAME} Release Script v${VERSION}${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
 echo -e "  Project:     ${CYAN}${PROJECT_NAME}${NC}"
 [ -n "$GITHUB_REPO" ] && echo -e "  GitHub:      ${CYAN}${GITHUB_REPO}${NC}"
+echo -e "  PyPI:        ${CYAN}${PYPI_REPOSITORY}${NC}"
 echo ""
 
 # Function to check if step is already done
@@ -754,15 +788,15 @@ step7_upload_pypi() {
         fi
         
         if ask_yn "Upload to PyPI?" "y"; then
-            echo -e "${YELLOW}Uploading to PyPI...${NC}"
-            if ! twine upload dist/*; then
+            echo -e "${YELLOW}Uploading to PyPI (${PYPI_REPOSITORY})...${NC}"
+            if ! twine upload -r "$PYPI_REPOSITORY" dist/*; then
                 echo -e "${RED}❌ Upload to PyPI failed${NC}"
                 return 1
             fi
             echo -e "${GREEN}✅ Successfully uploaded to PyPI!${NC}"
         else
             echo -e "${YELLOW}⚠️  Skipped PyPI upload${NC}"
-            echo -e "${CYAN}   Upload manually with: twine upload dist/*${NC}"
+            echo -e "${CYAN}   Upload manually with: twine upload -r ${PYPI_REPOSITORY} dist/*${NC}"
         fi
     else
         echo -e "${YELLOW}⚠️  Skipped PyPI upload (version already exists)${NC}"

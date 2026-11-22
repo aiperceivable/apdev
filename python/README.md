@@ -64,6 +64,10 @@ apdev release
 
 # Or specify version explicitly
 apdev release 0.2.0
+
+# Upload to a named .pypirc section (default: [tool.apdev] pypi_repository, or "pypi")
+apdev release --repository reachreel
+apdev release -r testpypi 0.3.0
 ```
 
 The command provides an interactive menu with steps:
@@ -74,7 +78,34 @@ The command provides an interactive menu with steps:
 5. Check package (`twine check`)
 6. Create git tag and push
 7. Create GitHub release (via `gh` CLI or API)
-8. Upload to PyPI (`twine upload`)
+8. Upload to PyPI (`twine upload -r <repository> dist/*`)
+
+Which `~/.pypirc` section is used, in order of precedence:
+
+1. `--repository NAME` / `-r NAME`
+2. `PYPI_REPOSITORY` environment variable
+3. `[tool.apdev] pypi_repository` in `pyproject.toml`
+4. the default `[pypi]` section
+
+The resolved section is printed in the header before anything is uploaded, so a
+second PyPI account is never a guess:
+
+```ini
+# ~/.pypirc
+[distutils]
+index-servers =
+    pypi
+    reachreel
+
+[pypi]
+username = __token__
+password = pypi-A...        # account A
+
+[reachreel]
+repository = https://upload.pypi.org/legacy/
+username = __token__
+password = pypi-B...        # account B
+```
 
 Override auto-detection with environment variables:
 
@@ -88,15 +119,17 @@ Add to your project's `pyproject.toml` so commands can run without CLI arguments
 
 ```toml
 [tool.apdev]
-base_package = "mypackage"   # Required by check-imports
-src_dir = "src"              # Source directory (default: "src")
+base_package = "mypackage"    # Required by check-imports
+src_dir = "src"               # Source directory (default: "src")
+pypi_repository = "mypackage" # .pypirc section for `apdev release` (default: "pypi")
 ```
 
-With this config, both commands work out of the box:
+With this config, the commands work out of the box:
 
 ```bash
 apdev check-chars    # Checks default project directories and config files
 apdev check-imports  # Reads base_package / src_dir from pyproject.toml
+apdev release        # Reads pypi_repository, so the right PyPI account is used
 ```
 
 ## Pre-commit Integration

@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## [0.2.6] - 2026-11-22
+
+### Added
+
+- `apdev release --repository NAME` / `-r NAME`, and `[tool.apdev]
+  pypi_repository` in the consumer project, so `twine upload` targets a named
+  `~/.pypirc` section instead of always using `[pypi]`. Resolution order is
+  flag, `PYPI_REPOSITORY` environment variable, `[tool.apdev]`, then `pypi`.
+- The release header prints the resolved section, so it is obvious which PyPI
+  account a release will use before anything is uploaded.
+- `[tool.apdev]` keys are documented in the README Configuration section,
+  including `pypi_repository`.
+
+### Changed
+
+- `release.sh` parses its arguments with a while loop, and reads
+  `pypi_repository` with awk instead of `tomllib`, so the script still works on
+  machines whose `python3` predates 3.11.
+
 ## [0.2.5] - 2026-11-18
 
 ### Changed
