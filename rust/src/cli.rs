@@ -9,7 +9,11 @@ use crate::check_chars::{check_paths, resolve_charsets};
 const RELEASE_SCRIPT: &str = include_str!("../release.sh");
 
 #[derive(Parser)]
-#[command(name = "apdev-rs", about = "Shared development tools for Rust projects", version)]
+#[command(
+    name = "apdev-rs",
+    about = "Shared development tools for Rust projects",
+    version
+)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,

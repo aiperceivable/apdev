@@ -42,8 +42,7 @@ struct CharsetData {
 /// Parse a `0x…` hex string, returning an error on malformed input.
 fn parse_hex(s: &str) -> Result<u32, String> {
     let s = s.trim_start_matches("0x").trim_start_matches("0X");
-    u32::from_str_radix(s, 16)
-        .map_err(|_| format!("Invalid hex codepoint in charset: '{}'", s))
+    u32::from_str_radix(s, 16).map_err(|_| format!("Invalid hex codepoint in charset: '{}'", s))
 }
 
 fn parse_charset_data(json: &str) -> Result<CharsetData, String> {
@@ -94,12 +93,16 @@ fn parse_dangerous(entries: &[DangerousEntry]) -> Result<HashMap<u32, String>, S
         .collect()
 }
 
+/// Allowed character ranges and dangerous codepoints, as returned by
+/// [`resolve_charsets`].
+pub type Charsets = (Vec<(u32, u32)>, HashMap<u32, String>);
+
 /// Load base charset and merge any additional charsets.
 /// Returns (all_ranges, dangerous_codepoints).
 pub fn resolve_charsets(
     charset_names: &[String],
     charset_files: &[String],
-) -> Result<(Vec<(u32, u32)>, HashMap<u32, String>), String> {
+) -> Result<Charsets, String> {
     let base = load_charset("base")?;
     let mut ranges_set: std::collections::HashSet<(u32, u32)> = std::collections::HashSet::new();
     ranges_set.extend(parse_ranges(&base.emoji_ranges)?);
@@ -157,10 +160,8 @@ fn compute_comment_mask_python(chars: &[char]) -> Vec<bool> {
     while i < n {
         // Triple-quoted strings: """ or '''
         if i + 2 < n {
-            let is_triple_double =
-                chars[i] == '"' && chars[i + 1] == '"' && chars[i + 2] == '"';
-            let is_triple_single =
-                chars[i] == '\'' && chars[i + 1] == '\'' && chars[i + 2] == '\'';
+            let is_triple_double = chars[i] == '"' && chars[i + 1] == '"' && chars[i + 2] == '"';
+            let is_triple_single = chars[i] == '\'' && chars[i + 1] == '\'' && chars[i + 2] == '\'';
             if is_triple_double || is_triple_single {
                 let q = chars[i];
                 i += 3;
@@ -347,20 +348,13 @@ const DEFAULT_GLOBS: &[&str] = &["*.md", "*.yml", "*.yaml", "*.json", ".gitignor
 
 const SKIP_SUFFIXES: &[&str] = &[
     // Python bytecode
-    "pyc", "pyo",
-    // Images
-    "png", "jpg", "jpeg", "gif", "bmp", "ico", "svg", "webp",
-    // Fonts
-    "ttf", "otf", "woff", "woff2", "eot",
-    // Archives
-    "zip", "tar", "gz", "bz2", "xz", "7z",
-    // Compiled / binary
-    "so", "dylib", "dll", "exe", "o", "a", "whl", "egg",
-    // Media
-    "mp3", "mp4", "wav", "avi", "mov", "flac", "ogg",
-    // Documents
-    "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
-    // Data
+    "pyc", "pyo", // Images
+    "png", "jpg", "jpeg", "gif", "bmp", "ico", "svg", "webp", // Fonts
+    "ttf", "otf", "woff", "woff2", "eot", // Archives
+    "zip", "tar", "gz", "bz2", "xz", "7z", // Compiled / binary
+    "so", "dylib", "dll", "exe", "o", "a", "whl", "egg", // Media
+    "mp3", "mp4", "wav", "avi", "mov", "flac", "ogg", // Documents
+    "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", // Data
     "db", "sqlite", "sqlite3", "pickle", "pkl",
 ];
 
@@ -501,7 +495,11 @@ pub fn check_paths(
         println!("All {} files passed.", checked);
     }
 
-    if has_error { 1 } else { 0 }
+    if has_error {
+        1
+    } else {
+        0
+    }
 }
 
 #[cfg(test)]

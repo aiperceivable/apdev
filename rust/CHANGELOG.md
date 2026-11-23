@@ -13,6 +13,13 @@ All notable changes to apdev-rs will be documented in this file.
 - An account that is not logged in aborts before any step, instead of letting
   `gh` fail later.
 
+### Changed
+
+- `Cargo.lock` is committed: `apdev-rs` is a binary crate, so the lockfile is
+  what makes CI builds reproducible.
+- `resolve_charsets` returns a named `Charsets` type, clearing the
+  `clippy::type_complexity` warning; `cargo fmt` applied across the crate.
+
 ### Fixed
 
 - `owner/repo` is parsed from any remote form, including per-account SSH

@@ -5,10 +5,16 @@ on:
     branches: [main]
     paths:
       - "python/**"
+      - "typescript/**"
+      - "rust/**"
+      - "shared/**"
       - ".github/workflows/ci.yml"
   pull_request:
     paths:
       - "python/**"
+      - "typescript/**"
+      - "rust/**"
+      - "shared/**"
       - ".github/workflows/ci.yml"
 
 concurrency:
@@ -16,11 +22,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: lint + tests (Python ${{ matrix.python-version }})
+  python:
+    name: python (lint + tests, Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
-    # Scoped to this job: a workflow-level default would also apply to the
-    # shellcheck job, whose paths are relative to the repository root.
+    # Scoped to this job: a workflow-level default would also apply to the other
+    # jobs, whose paths are relative to the repository root.
     defaults:
       run:
         working-directory: python
@@ -50,17 +56,12 @@ jobs:
       - name: Tests
         run: .venv/bin/python -m pytest -q --cov=apdev --cov-report=term-missing
 
-      # The script is 1000 lines of bash; a syntax error here only shows up
-      # when somebody is already mid-release.
       - name: Self-check (chars and imports)
         # The tools are useful on themselves; this also catches test data that
         # would make the repository fail its own default check.
         run: |
           .venv/bin/python -m apdev check-chars
           .venv/bin/python -m apdev check-imports
-
-      - name: Shell syntax
-        run: bash -n src/apdev/release.sh
 
       - name: Build and check the distribution
         if: matrix.python-version == '3.12'
@@ -72,10 +73,76 @@ jobs:
         if: matrix.python-version == '3.12'
         run: uv lock --check
 
-  shellcheck:
-    name: shellcheck (release.sh)
+  typescript:
+    name: typescript (build + tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: typescript
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: typescript/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Tests
+        run: pnpm test
+
+  rust:
+    name: rust (fmt + clippy + tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Format check
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+      - name: Tests
+        run: cargo test --locked
+
+  release-scripts:
+    name: release scripts (syntax + shellcheck)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run shellcheck on errors and warnings
-        run: shellcheck --severity=warning python/src/apdev/release.sh
+
+      - name: Syntax
+        run: |
+          bash -n python/src/apdev/release.sh
+          bash -n typescript/release.sh
+          bash -n rust/release.sh
+
+      - name: Shellcheck
+        # Errors and warnings only: the scripts predate the linter, and the
+        # remaining notes are style suggestions.
+        run: |
+          shellcheck --severity=warning python/src/apdev/release.sh
+          shellcheck --severity=warning typescript/release.sh
+          shellcheck --severity=warning rust/release.sh
