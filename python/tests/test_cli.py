@@ -455,7 +455,7 @@ def test_cli_check_chars_unknown_charset_in_process(tmp_path: Path, capsys) -> N
 def test_cli_check_chars_env_charset(tmp_path: Path, monkeypatch, capsys) -> None:
     """APDEV_EXTRA_CHARS supplies charsets when no flags are given."""
     f = tmp_path / "cn.py"
-    f.write_text("x = '中文'\n", encoding="utf-8")
+    f.write_text('x = "\\u4e2d\\u6587"\n', encoding="utf-8")
 
     monkeypatch.setenv("APDEV_EXTRA_CHARS", "chinese")
     assert cli.main(["check-chars", str(f)]) == 0
@@ -470,7 +470,7 @@ def test_cli_check_chars_env_charset_file(tmp_path: Path, monkeypatch, capsys) -
         encoding="utf-8",
     )
     f = tmp_path / "cn.py"
-    f.write_text("x = '中文'\n", encoding="utf-8")
+    f.write_text('x = "\\u4e2d\\u6587"\n', encoding="utf-8")
 
     monkeypatch.setenv("APDEV_EXTRA_CHARS", str(charset))
     assert cli.main(["check-chars", str(f)]) == 0

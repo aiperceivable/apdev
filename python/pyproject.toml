@@ -57,6 +57,10 @@ release = [
     "build>=1.0",
 ]
 
+[tool.apdev]
+base_package = "apdev"
+src_dir = "src"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

@@ -51,6 +51,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   3.10-3.13 matrix, `bash -n` and shellcheck for `release.sh`, `python -m build`
   plus `twine check`, and `uv lock --check`.
 
+### Fixed
+
+- A malformed `--charset-file` (invalid JSON, wrong shape, bad range entry)
+  raised a traceback; it now reports `Error: Invalid charset ...` and exits 1.
+- An explicit path that expands to nothing (empty directory, wrong glob) passed
+  silently; it is now an error. The no-argument default scan still tolerates an
+  empty project.
+- CI: the workflow-level `defaults.run.working-directory` also applied to the
+  shellcheck job, which made its `python/src/...` path resolve to
+  `python/python/src/...`; the default is now scoped to the test job.
+
+### Added
+
+- `[tool.apdev]` in this package's own `pyproject.toml`, and a CI step that runs
+  `apdev check-chars` and `apdev check-imports` on the package itself. The
+  charset check initially failed on the new tests because they contained
+  literal CJK; the fixtures use `\u` escapes now, so the repository passes its
+  own default check.
+
 ### Tooling
 
 - ruff now also checks `B`, `UP`, `SIM`, `RUF` and `PTH`; the ten findings it

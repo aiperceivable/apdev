@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from apdev.check_chars import (
+    CharsetError,
     check_file,
     check_paths,
     is_allowed_char,
@@ -398,3 +401,38 @@ def test_binary_file_is_skipped(tmp_path: Path) -> None:
 
     assert check_file(f) == []
     assert check_paths([f]) == 0
+
+
+def test_malformed_charset_json_raises_charset_error(tmp_path: Path) -> None:
+    """A broken charset file reports CharsetError instead of a JSON traceback."""
+    bad = tmp_path / "bad.json"
+    bad.write_text("not json", encoding="utf-8")
+
+    with pytest.raises(CharsetError):
+        load_charset(str(bad))
+
+
+def test_charset_with_invalid_ranges_raises_charset_error(tmp_path: Path) -> None:
+    """A charset entry without start/end is reported as CharsetError."""
+    bad = tmp_path / "bad-ranges.json"
+    bad.write_text('{"name":"x","extra_ranges":[{"from":"0x10"}]}', encoding="utf-8")
+
+    with pytest.raises(CharsetError):
+        resolve_charsets([], [str(bad)])
+
+
+def test_explicit_empty_directory_is_an_error(tmp_path: Path, capsys) -> None:
+    """An explicit directory with nothing to check must not pass silently."""
+    empty = tmp_path / "empty"
+    empty.mkdir()
+
+    assert check_paths([empty]) == 1
+    assert "no files to check" in capsys.readouterr().err
+
+
+def test_default_scan_without_files_is_not_an_error(tmp_path: Path, monkeypatch, capsys) -> None:
+    """With no arguments an empty project is fine, only explicit input is strict."""
+    monkeypatch.chdir(tmp_path)
+
+    assert check_paths([]) == 0
+    assert "No files to check" in capsys.readouterr().out

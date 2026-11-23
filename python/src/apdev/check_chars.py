@@ -16,6 +16,21 @@ import sys
 from pathlib import Path
 
 
+class CharsetError(RuntimeError):
+    """A charset file exists but cannot be used."""
+
+
+def _parse_charset(text: str, origin: str) -> dict:
+    """Parse a charset JSON document, reporting problems as CharsetError."""
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise CharsetError(f"Invalid charset JSON in {origin}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise CharsetError(f"Invalid charset in {origin}: expected a JSON object")
+    return data
+
+
 def load_charset(name_or_path: str) -> dict:
     """Load a charset definition by preset name or file path.
 
@@ -27,19 +42,22 @@ def load_charset(name_or_path: str) -> dict:
         p = Path(name_or_path)
         if not p.is_file():
             raise FileNotFoundError(f"Charset file not found: {name_or_path}")
-        return json.loads(p.read_text(encoding="utf-8"))
+        return _parse_charset(p.read_text(encoding="utf-8"), name_or_path)
 
     ref = importlib.resources.files("apdev").joinpath("charsets", f"{name_or_path}.json")
     try:
         text = ref.read_text(encoding="utf-8")
     except Exception as exc:
         raise FileNotFoundError(f"Unknown charset: {name_or_path}") from exc
-    return json.loads(text)
+    return _parse_charset(text, f"charset {name_or_path!r}")
 
 
 def _parse_ranges(entries: list[dict]) -> list[tuple[int, int]]:
     """Convert JSON range entries to (start, end) tuples."""
-    return [(int(e["start"], 16), int(e["end"], 16)) for e in entries]
+    try:
+        return [(int(e["start"], 16), int(e["end"], 16)) for e in entries]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise CharsetError(f"Invalid charset range entry: {exc}") from exc
 
 
 def _parse_dangerous(entries: list[dict]) -> dict[int, str]:
@@ -424,6 +442,12 @@ def check_paths(
     """Check multiple files. Returns 0 if all clean, 1 if any have problems."""
     resolved = _resolve_paths(paths)
     if not resolved:
+        if paths:
+            # Explicit input that expands to nothing means a wrong path or a
+            # directory without text files; passing silently would hide it.
+            given = ", ".join(str(p) for p in paths)
+            print(f"Error: no files to check for: {given}", file=sys.stderr)
+            return 1
         print("No files to check.")
         return 0
 

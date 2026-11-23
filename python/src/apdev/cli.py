@@ -122,7 +122,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "check-chars":
-        from apdev.check_chars import resolve_charsets
+        from apdev.check_chars import CharsetError, resolve_charsets
 
         charset_names = list(args.charset)
         charset_files = list(args.charset_files)
@@ -142,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
 
         try:
             extra_ranges, dangerous = resolve_charsets(charset_names, charset_files)
-        except FileNotFoundError as exc:
+        except (FileNotFoundError, CharsetError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
             return 1
         return check_paths(args.files, extra_ranges=extra_ranges, dangerous=dangerous)

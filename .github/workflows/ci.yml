@@ -15,14 +15,15 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-defaults:
-  run:
-    working-directory: python
-
 jobs:
   test:
     name: lint + tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    # Scoped to this job: a workflow-level default would also apply to the
+    # shellcheck job, whose paths are relative to the repository root.
+    defaults:
+      run:
+        working-directory: python
     strategy:
       fail-fast: false
       matrix:
@@ -51,6 +52,13 @@ jobs:
 
       # The script is 1000 lines of bash; a syntax error here only shows up
       # when somebody is already mid-release.
+      - name: Self-check (chars and imports)
+        # The tools are useful on themselves; this also catches test data that
+        # would make the repository fail its own default check.
+        run: |
+          .venv/bin/python -m apdev check-chars
+          .venv/bin/python -m apdev check-imports
+
       - name: Shell syntax
         run: bash -n src/apdev/release.sh
 
