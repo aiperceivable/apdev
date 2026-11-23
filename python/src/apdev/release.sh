@@ -76,8 +76,18 @@ fi
 if [ -z "$GITHUB_REPO" ]; then
     REMOTE_URL=$(git remote get-url origin 2>/dev/null)
     if [ -n "$REMOTE_URL" ]; then
-        # Extract owner/repo from SSH or HTTPS URL
-        GITHUB_REPO=$(echo "$REMOTE_URL" | sed -E 's|.*github\.com[:/]||; s|\.git$||')
+        # Extract owner/repo from any remote form, including per-account SSH
+        # aliases such as git@github-work:owner/repo.git, which earlier versions
+        # did not recognise (they only matched github.com).
+        GITHUB_REPO=$(echo "$REMOTE_URL" \
+            | sed -E 's|\.git$||; s|/+$||' \
+            | tr ':' '/' \
+            | awk -F/ '{ if (NF >= 2) print $(NF-1) "/" $NF }')
+        if ! echo "$GITHUB_REPO" | grep -Eq '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'; then
+            echo -e "${YELLOW}Warning: could not parse owner/repo from ${REMOTE_URL}${NC}"
+            echo -e "${YELLOW}   Set GITHUB_REPO=owner/repo to create the GitHub release${NC}"
+            GITHUB_REPO=""
+        fi
     fi
     if [ -z "$GITHUB_REPO" ]; then
         echo -e "${YELLOW}Warning: Could not detect GitHub repo from git remote${NC}"
