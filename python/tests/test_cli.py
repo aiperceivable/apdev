@@ -152,7 +152,7 @@ def test_cli_release_forwards_account_from_config(
             version = "0.1.0"
 
             [tool.apdev]
-            github_account = "wilfred"
+            github_account = "work-account"
             """
         ),
         encoding="utf-8",
@@ -163,7 +163,7 @@ def test_cli_release_forwards_account_from_config(
     assert cli.main(["release", "--yes"]) == 0
 
     args = run.call_args.args[0]
-    assert args[2:] == ["--yes", "--account", "wilfred"]
+    assert args[2:] == ["--yes", "--account", "work-account"]
 
 
 def test_cli_release_account_flag_beats_config(
@@ -179,7 +179,7 @@ def test_cli_release_account_flag_beats_config(
             version = "0.1.0"
 
             [tool.apdev]
-            github_account = "wilfred"
+            github_account = "work-account"
             pypi_repository = "reachreel"
             """
         ),
@@ -188,14 +188,14 @@ def test_cli_release_account_flag_beats_config(
     run = Mock(return_value=subprocess.CompletedProcess(args=[], returncode=0))
     monkeypatch.setattr(cli.subprocess, "run", run)
 
-    assert cli.main(["release", "--account", "tercel", "0.2.0"]) == 0
+    assert cli.main(["release", "--account", "personal-account", "0.2.0"]) == 0
 
     args = run.call_args.args[0]
     assert args[2:] == [
         "--repository",
         "reachreel",
         "--account",
-        "tercel",
+        "personal-account",
         "0.2.0",
     ]
 

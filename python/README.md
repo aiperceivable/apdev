@@ -70,8 +70,8 @@ apdev release --repository reachreel
 apdev release -r testpypi 0.3.0
 
 # Publish the GitHub release as another account (default: [tool.apdev] github_account, or gh's active account)
-apdev release --account wilfred
-apdev release -a tercel 0.3.0
+apdev release --account work-account
+apdev release -a personal-account 0.3.0
 ```
 
 The command provides an interactive menu with steps:
@@ -125,13 +125,13 @@ gh auth status                       # both logins listed, one active
 
 ```toml
 [tool.apdev]
-github_account = "wilfred"
+github_account = "work-account"   # the login, not a display name
 ```
 
 `apdev release` then resolves that account's token with
-`gh auth token --user wilfred`, exports it as `GH_TOKEN`/`GITHUB_TOKEN` for the
-run only, and prints `GitHub user: wilfred` in the header. The global active
-account is never switched, so other repositories keep their own identity.
+`gh auth token --user work-account`, exports it as `GH_TOKEN`/`GITHUB_TOKEN` for
+the run only, and prints `GitHub user: work-account` in the header. The global
+active account is never switched, so other repositories keep their own identity.
 
 Override auto-detection with environment variables:
 
@@ -148,7 +148,7 @@ Add to your project's `pyproject.toml` so commands can run without CLI arguments
 base_package = "mypackage"    # Required by check-imports
 src_dir = "src"               # Source directory (default: "src")
 pypi_repository = "mypackage" # .pypirc section for `apdev release` (default: "pypi")
-github_account = "wilfred"    # gh login for the GitHub release (default: gh's active account)
+github_account = "work-account" # gh login for the GitHub release (default: gh's active account)
 ```
 
 With this config, the commands work out of the box:
