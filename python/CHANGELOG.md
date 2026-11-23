@@ -6,6 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 
+## [Unreleased]
+
+## [0.2.7] - 2026-11-22
+
+### Added
+
+- `apdev release --account NAME` / `-a NAME`, and `[tool.apdev]
+  github_account`, so the GitHub release is published as a chosen `gh` login
+  instead of whichever account happens to be active. The token is resolved
+  with `gh auth token --user NAME` and exported for that run only, so the
+  active account is never switched; `GITHUB_ACCOUNT` works as an environment
+  override, and an account that is not logged in aborts before any step runs.
+- The release header prints `GitHub user: <login>` next to the PyPI section.
+- `get_github_token` honours `GH_TOKEN` when step 6.5 clears `GITHUB_TOKEN`, so
+  the API fallback uses the same account as the CLI.
+
+### Changed
+
+- The README documents `github_account` and the two-login `gh` setup.
+
+### Fixed
+
+- `owner/repo` is parsed from any remote form, including per-account SSH
+  aliases such as `git@github-work:owner/repo.git`. Previously only a
+  `github.com` prefix was stripped, so step 6.5 passed a URL to
+  `gh release create --repo` and failed.
+
 ## [0.2.6] - 2026-11-22
 
 ### Added
@@ -16,14 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   flag, `PYPI_REPOSITORY` environment variable, `[tool.apdev]`, then `pypi`.
 - The release header prints the resolved section, so it is obvious which PyPI
   account a release will use before anything is uploaded.
-- `apdev release --account NAME` / `-a NAME`, and `[tool.apdev]
-  github_account`, so the GitHub release is published as a chosen `gh` login
-  instead of whichever account happens to be active. The token is resolved
-  with `gh auth token --user NAME` and exported for that run only; the active
-  account is never switched. `GITHUB_ACCOUNT` works as an environment
-  override, and an account that is not logged in aborts before any step runs.
 - `[tool.apdev]` keys are documented in the README Configuration section,
-  including `pypi_repository` and `github_account`.
+  including `pypi_repository`.
 
 ### Changed
 
