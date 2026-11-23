@@ -34,6 +34,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   says which extra to install when the frontend is missing.
 - `uv.lock` regenerated (it still pinned apdev 0.2.5).
 
+### Fixed
+
+- The test modules now start with `from __future__ import annotations`, so the
+  `str | Path` signatures do not fail at import time on Python 3.10, the lowest
+  version the package claims to support.
+- `release.sh` no longer uses `local x=$(...)`, which masked exit statuses and
+  tripped shellcheck's SC2155.
+
+### Added
+
+- CI for the Python package: ruff check and format, pytest with coverage on a
+  3.10-3.13 matrix, `bash -n` and shellcheck for `release.sh`, `python -m build`
+  plus `twine check`, and `uv lock --check`.
+
 ### Packaging
 
 - Add `LICENSE` and `NOTICE` (Apache-2.0) to the repository and ship them in

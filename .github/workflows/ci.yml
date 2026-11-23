@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "python/**"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "python/**"
+      - ".github/workflows/ci.yml"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: python
+
+jobs:
+  test:
+    name: lint + tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Create virtual environment
+        run: uv venv --python ${{ matrix.python-version }}
+
+      - name: Install the package with dev tools
+        run: uv pip install --python .venv/bin/python -e ".[dev]"
+
+      - name: Lint
+        run: uvx ruff@0.8.4 check src tests
+
+      - name: Format check
+        run: uvx ruff@0.8.4 format --check src tests
+
+      - name: Tests
+        run: .venv/bin/python -m pytest -q --cov=apdev --cov-report=term-missing
+
+      # The script is 1000 lines of bash; a syntax error here only shows up
+      # when somebody is already mid-release.
+      - name: Shell syntax
+        run: bash -n src/apdev/release.sh
+
+      - name: Build and check the distribution
+        if: matrix.python-version == '3.12'
+        run: |
+          .venv/bin/python -m build
+          uvx twine check dist/*
+
+      - name: Lockfile is up to date
+        if: matrix.python-version == '3.12'
+        run: uv lock --check
+
+  shellcheck:
+    name: shellcheck (release.sh)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shellcheck on errors and warnings
+        run: shellcheck --severity=warning python/src/apdev/release.sh

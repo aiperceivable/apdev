@@ -1,5 +1,7 @@
 """Tests for character validation tool."""
 
+from __future__ import annotations
+
 from pathlib import Path
 
 from apdev.check_chars import (

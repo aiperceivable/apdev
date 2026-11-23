@@ -553,7 +553,8 @@ get_github_token() {
     fi
     
     # 2. Check git config for token
-    local token=$(git config --global github.token 2>/dev/null || git config github.token 2>/dev/null)
+    local token
+    token=$(git config --global github.token 2>/dev/null || git config github.token 2>/dev/null)
     if [ -n "$token" ]; then
         echo "$token"
         return 0
@@ -582,7 +583,8 @@ create_github_release_api() {
     local api_url="https://api.github.com/repos/${repo}/releases"
     
     # Create JSON payload
-    local json_payload=$(cat <<EOF
+    local json_payload
+    json_payload=$(cat <<EOF
 {
   "tag_name": "${tag}",
   "name": "${title}",
@@ -594,15 +596,18 @@ EOF
 )
     
     # Create release using curl
-    local response=$(curl -s -w "\n%{http_code}" -X POST \
+    local response
+    response=$(curl -s -w "\n%{http_code}" -X POST \
         -H "Authorization: token ${token}" \
         -H "Accept: application/vnd.github.v3+json" \
         -H "Content-Type: application/json" \
         -d "${json_payload}" \
         "${api_url}")
     
-    local http_code=$(echo "$response" | tail -n1)
-    local body=$(echo "$response" | sed '$d')
+    local http_code
+    local body
+    http_code=$(echo "$response" | tail -n1)
+    body=$(echo "$response" | sed '$d')
     
     if [ "$http_code" = "201" ]; then
         return 0
