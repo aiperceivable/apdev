@@ -12,6 +12,7 @@ from __future__ import annotations
 import importlib.resources
 import json
 import os
+import sys
 from pathlib import Path
 
 
@@ -273,8 +274,8 @@ def check_file(
                 )
             if len(problems) >= max_problems:
                 break
-    except Exception as e:
-        problems.append(f"Failed to read file: {e}")
+    except OSError as exc:
+        problems.append(f"Failed to read file: {exc}")
     return problems
 
 
@@ -427,7 +428,14 @@ def check_paths(
 
     has_error = False
     checked = 0
+    missing: list[Path] = []
     for path in resolved:
+        if not path.is_file():
+            # A path that does not exist is an invocation error, not an
+            # "illegal characters" finding.
+            missing.append(path)
+            has_error = True
+            continue
         problems = check_file(path, extra_ranges=extra_ranges, dangerous=dangerous)
         checked += 1
         if problems:
@@ -435,6 +443,8 @@ def check_paths(
             print(f"\n{path} contains illegal characters:")
             for p in problems:
                 print(f"  {p}")
+    for path in missing:
+        print(f"Error: file not found: {path}", file=sys.stderr)
     if not has_error:
         print(f"All {checked} files passed.")
     return 1 if has_error else 0

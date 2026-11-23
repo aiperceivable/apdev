@@ -386,3 +386,50 @@ def test_cli_check_chars_charset_file(tmp_path: Path) -> None:
     f.write_text("x = '\u4e2d\u6587'\n")
     result = run_apdev("check-chars", "--charset-file", str(custom), str(f))
     assert result.returncode == 0
+
+
+def test_cli_check_chars_unknown_charset(tmp_path: Path) -> None:
+    """An unknown --charset is a clean error, not a traceback."""
+    f = tmp_path / "ok.py"
+    f.write_text("x = 1\n", encoding="utf-8")
+
+    result = run_apdev("check-chars", "--charset", "nope", str(f))
+
+    assert result.returncode == 1
+    assert "Unknown charset: nope" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_cli_check_chars_missing_charset_file(tmp_path: Path) -> None:
+    """A missing --charset-file is a clean error as well."""
+    f = tmp_path / "ok.py"
+    f.write_text("x = 1\n", encoding="utf-8")
+    missing = tmp_path / "nope.json"
+
+    result = run_apdev("check-chars", "--charset-file", str(missing), str(f))
+
+    assert result.returncode == 1
+    assert "Charset file not found" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_cli_check_chars_missing_input_file(tmp_path: Path) -> None:
+    """A path that does not exist is an invocation error, not a finding."""
+    missing = tmp_path / "nope.py"
+
+    result = run_apdev("check-chars", str(missing))
+
+    assert result.returncode == 1
+    assert "file not found" in result.stderr
+    assert "illegal characters" not in result.stdout
+
+
+def test_cli_check_imports_missing_package(tmp_path: Path) -> None:
+    """A wrong package name exits 1 instead of reporting a clean scan."""
+    (tmp_path / "src" / "pkg").mkdir(parents=True)
+    (tmp_path / "src" / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+
+    result = run_apdev("check-imports", "--package", "nope", cwd=tmp_path)
+
+    assert result.returncode == 1
+    assert "not found under" in result.stderr

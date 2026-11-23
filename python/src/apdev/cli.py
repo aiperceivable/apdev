@@ -140,7 +140,11 @@ def main(argv: list[str] | None = None) -> int:
                     else:
                         charset_names.append(item)
 
-        extra_ranges, dangerous = resolve_charsets(charset_names, charset_files)
+        try:
+            extra_ranges, dangerous = resolve_charsets(charset_names, charset_files)
+        except FileNotFoundError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
         return check_paths(args.files, extra_ranges=extra_ranges, dangerous=dangerous)
 
     if args.command == "check-imports":
