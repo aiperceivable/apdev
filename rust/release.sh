@@ -6,15 +6,27 @@
 #         ./release.sh --yes 0.1.0    # silent mode with specific version
 #
 # Auto-detects project name from Cargo.toml and GitHub repo from git remote.
-# Override with environment variables: PROJECT_NAME, GITHUB_REPO
+# Override with environment variables: PROJECT_NAME, GITHUB_REPO,
+# GITHUB_ACCOUNT (gh login that publishes the GitHub release).
 
 SILENT=false
+GITHUB_ACCOUNT="${GITHUB_ACCOUNT:-}"
 POSITIONAL_ARGS=()
-for arg in "$@"; do
-    case "$arg" in
+while [ "$#" -gt 0 ]; do
+    case "$1" in
         --yes|-y) SILENT=true ;;
-        *) POSITIONAL_ARGS+=("$arg") ;;
+        --account|-a)
+            if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+                echo "Error: --account needs a GitHub login" >&2
+                exit 1
+            fi
+            GITHUB_ACCOUNT="$2"
+            shift
+            ;;
+        --account=*) GITHUB_ACCOUNT="${1#*=}" ;;
+        *) POSITIONAL_ARGS+=("$1") ;;
     esac
+    shift
 done
 set -- "${POSITIONAL_ARGS[@]}"
 
@@ -39,11 +51,55 @@ fi
 if [ -z "$GITHUB_REPO" ]; then
     REMOTE_URL=$(git remote get-url origin 2>/dev/null)
     if [ -n "$REMOTE_URL" ]; then
-        GITHUB_REPO=$(echo "$REMOTE_URL" | sed -E 's|.*github\.com[:/]||; s|\.git$||')
+        # Covers SSH aliases such as git@github-work:owner/repo.git, not only
+        # a literal github.com prefix.
+        GITHUB_REPO=$(echo "$REMOTE_URL" \
+            | sed -E 's|\.git$||; s|/+$||' \
+            | tr ':' '/' \
+            | awk -F/ '{ if (NF >= 2) print $(NF-1) "/" $NF }')
+        if ! echo "$GITHUB_REPO" | grep -Eq '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'; then
+            echo -e "${YELLOW}Warning: could not parse owner/repo from ${REMOTE_URL}${NC}"
+            echo -e "${YELLOW}   Set GITHUB_REPO=owner/repo to create the GitHub release${NC}"
+            GITHUB_REPO=""
+        fi
     fi
     if [ -z "$GITHUB_REPO" ]; then
         echo -e "${YELLOW}Warning: Could not detect GitHub repo from git remote${NC}"
     fi
+fi
+
+# GitHub account: --account, then GITHUB_ACCOUNT, then Cargo.toml
+# [package.metadata.apdev] github_account, then whatever `gh` has active. When
+# set, its token is exported for this run only, so `gh` acts as that user
+# without touching the global `gh auth switch` state.
+if [ -z "$GITHUB_ACCOUNT" ] && [ -f Cargo.toml ]; then
+    GITHUB_ACCOUNT=$(awk '
+        /^[[:space:]]*\[/ {
+            in_meta = ($0 ~ /^[[:space:]]*\[package\.metadata\.apdev\][[:space:]]*$/)
+            next
+        }
+        in_meta && /^[[:space:]]*github_account[[:space:]]*=/ {
+            print
+            exit
+        }
+    ' Cargo.toml | sed -E 's/^[^=]*=[[:space:]]*//; s/[[:space:]]+$//; s/^"//; s/"$//')
+fi
+
+if [ -n "$GITHUB_ACCOUNT" ]; then
+    if ! command -v gh > /dev/null 2>&1; then
+        echo -e "${RED}Error: GITHUB_ACCOUNT needs the GitHub CLI${NC}"
+        echo -e "${YELLOW}Install it (brew install gh) or unset the account to use the active login${NC}"
+        exit 1
+    fi
+    if ! GH_ACCOUNT_TOKEN=$(gh auth token --user "$GITHUB_ACCOUNT" 2>/dev/null) || [ -z "$GH_ACCOUNT_TOKEN" ]; then
+        echo -e "${RED}Error: GitHub account '${GITHUB_ACCOUNT}' is not logged in${NC}"
+        echo -e "${YELLOW}Add it once with: gh auth login --git-protocol ssh${NC}"
+        echo -e "${YELLOW}Then verify with: gh auth status${NC}"
+        exit 1
+    fi
+    GH_TOKEN="$GH_ACCOUNT_TOKEN"
+    GITHUB_TOKEN="$GH_ACCOUNT_TOKEN"
+    export GH_TOKEN GITHUB_TOKEN
 fi
 
 # Get version from argument or Cargo.toml
@@ -58,13 +114,13 @@ else
 fi
 
 TAG="rust/v${VERSION}"
-TAG_URL_ENCODED="${TAG//\//%2F}"
 
 echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
 echo -e "${CYAN}║  ${PROJECT_NAME} Release Script v${VERSION} (Rust)${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
 echo -e "  Project:     ${CYAN}${PROJECT_NAME}${NC}"
 [ -n "$GITHUB_REPO" ] && echo -e "  GitHub:      ${CYAN}${GITHUB_REPO}${NC}"
+[ -n "$GITHUB_ACCOUNT" ] && echo -e "  GitHub user: ${CYAN}${GITHUB_ACCOUNT}${NC}"
 echo ""
 
 check_tag_exists() {

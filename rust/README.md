@@ -93,6 +93,39 @@ repos:
         types_or: [text, rust]
 ```
 
+## Releasing
+
+`./release.sh` verifies the version, builds, tags, creates the GitHub release
+and publishes to crates.io.
+
+```bash
+./release.sh                          # Use the version from Cargo.toml
+./release.sh 0.2.2                    # Specify version
+./release.sh --account work-account   # Publish the GitHub release as that gh login
+```
+
+### Releasing as a second GitHub account
+
+`git push` follows the remote (for example a per-account SSH alias), but `gh`
+has a single active login. `--account NAME` / `GITHUB_ACCOUNT` /
+`[package.metadata.apdev] github_account` in `Cargo.toml` select the login that
+creates the release:
+
+```toml
+[package.metadata.apdev]
+github_account = "work-account"   # the login, not a display name
+```
+
+```bash
+gh auth login --git-protocol ssh     # once per account, gh keeps both
+gh auth status                       # both listed, one active
+```
+
+The token is resolved with `gh auth token --user NAME` and exported for that run
+only, so the machine-wide active account is never switched. An account that is
+not logged in aborts before any step runs, and the header prints
+`GitHub user: NAME` next to the repository.
+
 ## Development
 
 Prerequisites: Rust >= 1.70.

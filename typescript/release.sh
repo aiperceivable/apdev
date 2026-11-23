@@ -6,19 +6,31 @@
 #         ./release.sh --yes 0.2.0    # silent mode with specific version
 #
 # Auto-detects project name from package.json and GitHub repo from git remote.
-# Override with environment variables: PROJECT_NAME, GITHUB_REPO
+# Override with environment variables: PROJECT_NAME, GITHUB_REPO,
+# GITHUB_ACCOUNT (gh login that publishes the GitHub release).
 
 # Note: set -e is disabled to allow step-by-step execution
 # Individual steps will handle their own error handling
 
 # Silent mode flag (--yes or -y to auto-accept all defaults)
 SILENT=false
+GITHUB_ACCOUNT="${GITHUB_ACCOUNT:-}"
 POSITIONAL_ARGS=()
-for arg in "$@"; do
-    case "$arg" in
+while [ "$#" -gt 0 ]; do
+    case "$1" in
         --yes|-y) SILENT=true ;;
-        *) POSITIONAL_ARGS+=("$arg") ;;
+        --account|-a)
+            if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+                echo "Error: --account needs a GitHub login" >&2
+                exit 1
+            fi
+            GITHUB_ACCOUNT="$2"
+            shift
+            ;;
+        --account=*) GITHUB_ACCOUNT="${1#*=}" ;;
+        *) POSITIONAL_ARGS+=("$1") ;;
     esac
+    shift
 done
 set -- "${POSITIONAL_ARGS[@]}"
 
@@ -44,12 +56,47 @@ fi
 if [ -z "$GITHUB_REPO" ]; then
     REMOTE_URL=$(git remote get-url origin 2>/dev/null)
     if [ -n "$REMOTE_URL" ]; then
-        GITHUB_REPO=$(echo "$REMOTE_URL" | sed -E 's|.*github\.com[:/]||; s|\.git$||')
+        # Covers SSH aliases such as git@github-work:owner/repo.git, not only
+        # a literal github.com prefix.
+        GITHUB_REPO=$(echo "$REMOTE_URL" \
+            | sed -E 's|\.git$||; s|/+$||' \
+            | tr ':' '/' \
+            | awk -F/ '{ if (NF >= 2) print $(NF-1) "/" $NF }')
+        if ! echo "$GITHUB_REPO" | grep -Eq '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'; then
+            echo -e "${YELLOW}Warning: could not parse owner/repo from ${REMOTE_URL}${NC}"
+            echo -e "${YELLOW}   Set GITHUB_REPO=owner/repo to create the GitHub release${NC}"
+            GITHUB_REPO=""
+        fi
     fi
     if [ -z "$GITHUB_REPO" ]; then
         echo -e "${YELLOW}Warning: Could not detect GitHub repo from git remote${NC}"
         echo -e "${YELLOW}Set GITHUB_REPO environment variable (e.g. owner/repo)${NC}"
     fi
+fi
+
+# GitHub account: --account, then GITHUB_ACCOUNT, then package.json
+# "apdev": {"github_account": ...}, then whatever `gh` has active. When set, its
+# token is exported for this run only, so `gh` acts as that user without
+# touching the global `gh auth switch` state.
+if [ -z "$GITHUB_ACCOUNT" ]; then
+    GITHUB_ACCOUNT=$(node -e "const c=require('./package.json').apdev; process.stdout.write(c&&c.github_account?String(c.github_account):'')" 2>/dev/null)
+fi
+
+if [ -n "$GITHUB_ACCOUNT" ]; then
+    if ! command -v gh > /dev/null 2>&1; then
+        echo -e "${RED}Error: GITHUB_ACCOUNT needs the GitHub CLI${NC}"
+        echo -e "${YELLOW}Install it (brew install gh) or unset the account to use the active login${NC}"
+        exit 1
+    fi
+    if ! GH_ACCOUNT_TOKEN=$(gh auth token --user "$GITHUB_ACCOUNT" 2>/dev/null) || [ -z "$GH_ACCOUNT_TOKEN" ]; then
+        echo -e "${RED}Error: GitHub account '${GITHUB_ACCOUNT}' is not logged in${NC}"
+        echo -e "${YELLOW}Add it once with: gh auth login --git-protocol ssh${NC}"
+        echo -e "${YELLOW}Then verify with: gh auth status${NC}"
+        exit 1
+    fi
+    GH_TOKEN="$GH_ACCOUNT_TOKEN"
+    GITHUB_TOKEN="$GH_ACCOUNT_TOKEN"
+    export GH_TOKEN GITHUB_TOKEN
 fi
 
 # Get version from argument or package.json
@@ -70,6 +117,7 @@ echo -e "${CYAN}║  ${PROJECT_NAME} Release Script v${VERSION}${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
 echo -e "  Project:     ${CYAN}${PROJECT_NAME}${NC}"
 [ -n "$GITHUB_REPO" ] && echo -e "  GitHub:      ${CYAN}${GITHUB_REPO}${NC}"
+[ -n "$GITHUB_ACCOUNT" ] && echo -e "  GitHub user: ${CYAN}${GITHUB_ACCOUNT}${NC}"
 echo ""
 
 # Function to check if step is already done

@@ -2,6 +2,24 @@
 
 All notable changes to apdev-rs will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- `release.sh --account NAME` / `GITHUB_ACCOUNT` /
+  `[package.metadata.apdev] github_account` selects the `gh` login that
+  publishes the GitHub release; the token is used for that run only and the
+  header prints `GitHub user: NAME`.
+- An account that is not logged in aborts before any step, instead of letting
+  `gh` fail later.
+
+### Fixed
+
+- `owner/repo` is parsed from any remote form, including per-account SSH
+  aliases such as `git@github-work:owner/repo.git`; the old parser only stripped
+  a `github.com` prefix and handed `gh release create` an unusable value.
+- Removed an unused `TAG_URL_ENCODED` variable (shellcheck SC2034).
+
 ## [0.2.1] - 2026-03-22
 
 ### Changed

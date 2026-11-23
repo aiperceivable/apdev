@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `release.sh --account NAME` / `GITHUB_ACCOUNT` / `"apdev".github_account`
+  selects the `gh` login that publishes the GitHub release; the token is used
+  for that run only and the header prints `GitHub user: NAME`.
+- An account that is not logged in aborts before any step, instead of skipping
+  the release silently.
+
+### Fixed
+
+- `owner/repo` is parsed from any remote form, including per-account SSH
+  aliases such as `git@github-work:owner/repo.git`; the old parser only stripped
+  a `github.com` prefix and handed `gh release create` an unusable value.
+
 ## [0.2.5] - 2026-11-18
 
 ### Changed
