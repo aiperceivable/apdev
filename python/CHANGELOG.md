@@ -26,6 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - The README documents `github_account` and the two-login `gh` setup.
 
+### Changed
+
+- `build` moved out of the runtime dependencies into `apdev[release]` and
+  `apdev[dev]`: only `apdev release` needs a build frontend, so plain installs
+  no longer pull `build`, `packaging` and `pyproject-hooks`. `release.sh` now
+  says which extra to install when the frontend is missing.
+- `uv.lock` regenerated (it still pinned apdev 0.2.5).
+
 ### Packaging
 
 - Add `LICENSE` and `NOTICE` (Apache-2.0) to the repository and ship them in

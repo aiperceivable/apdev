@@ -8,29 +8,33 @@ resolution-markers = [
 
 [[package]]
 name = "apdev"
-version = "0.2.5"
+version = "0.2.7"
 source = { editable = "." }
 dependencies = [
-    { name = "build" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
 
 [package.optional-dependencies]
 dev = [
+    { name = "build" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
 ]
+release = [
+    { name = "build" },
+]
 
 [package.metadata]
 requires-dist = [
-    { name = "build", specifier = ">=1.0" },
+    { name = "build", marker = "extra == 'dev'", specifier = ">=1.0" },
+    { name = "build", marker = "extra == 'release'", specifier = ">=1.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=1.1.0" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["dev", "release"]
 
 [[package]]
 name = "build"

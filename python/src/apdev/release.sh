@@ -438,7 +438,14 @@ step4_build_package() {
             echo -e "${RED}❌ Error: python command not found${NC}"
             return 1
         fi
-        
+
+        if ! python -c "import build" &> /dev/null; then
+            echo -e "${RED}❌ Error: the 'build' frontend is not installed${NC}"
+            echo -e "${YELLOW}   It ships with apdev[release]: pip install 'apdev[release]'${NC}"
+            echo -e "${YELLOW}   or install it directly: pip install build${NC}"
+            return 1
+        fi
+
         echo -e "${YELLOW}Building package...${NC}"
         if ! python -m build; then
             echo -e "${RED}❌ Build failed${NC}"
