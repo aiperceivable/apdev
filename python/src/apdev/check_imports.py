@@ -49,6 +49,11 @@ class ImportAnalyzer(ast.NodeVisitor):
             if node.module:
                 resolved = ".".join(base_parts + node.module.split("."))
                 self.imports.add(resolved)
+                # ``from pkg import sub`` may be importing a sub-module, which
+                # is how a cycle through ``pkg.sub`` is actually created.
+                for alias in node.names:
+                    if alias.name != "*":
+                        self.imports.add(f"{resolved}.{alias.name}")
             else:
                 # ``from . import foo, bar`` – each name is a sub-module.
                 for alias in node.names:
@@ -56,6 +61,10 @@ class ImportAnalyzer(ast.NodeVisitor):
                     self.imports.add(resolved)
         elif node.module:
             self.imports.add(node.module)
+            # ``from pkg import sub`` without a dotted module part.
+            for alias in node.names:
+                if alias.name != "*":
+                    self.imports.add(f"{node.module}.{alias.name}")
 
 
 def file_to_module(file_path: Path, src_dir: Path) -> str:
@@ -163,8 +172,25 @@ def check_circular_imports(
         print(f"Error: {src_dir}/ directory not found", file=sys.stderr)
         return 1
 
+    package_dir = src_dir / base_package
+    if not package_dir.is_dir():
+        print(
+            f"Error: package '{base_package}' not found under {src_dir}/",
+            file=sys.stderr,
+        )
+        return 1
+
     graph = build_dependency_graph(src_dir, base_package=base_package)
     print(f"Scanned {len(graph)} modules")
+    if not graph:
+        # A wrong --package or a layout this tool cannot read used to report
+        # "no circular imports detected", which turned the check into a no-op.
+        print(
+            f"Error: no Python modules found for package '{base_package}' under "
+            f"{src_dir}/ (nothing was checked)",
+            file=sys.stderr,
+        )
+        return 1
 
     cycles = find_cycles(graph)
     if cycles:
