@@ -80,11 +80,11 @@ def test_cli_release_forwards_repository_flag(
     run = Mock(return_value=subprocess.CompletedProcess(args=[], returncode=0))
     monkeypatch.setattr(cli.subprocess, "run", run)
 
-    assert cli.main(["release", "--repository", "reachreel", "0.1.0"]) == 0
+    assert cli.main(["release", "--repository", "myproject", "0.1.0"]) == 0
 
     args = run.call_args.args[0]
     assert args[0] == "bash"
-    assert args[2:] == ["--repository", "reachreel", "0.1.0"]
+    assert args[2:] == ["--repository", "myproject", "0.1.0"]
 
 
 def test_cli_release_reads_repository_from_config(
@@ -100,7 +100,7 @@ def test_cli_release_reads_repository_from_config(
             version = "0.1.0"
 
             [tool.apdev]
-            pypi_repository = "reachreel"
+            pypi_repository = "myproject"
             """
         ),
         encoding="utf-8",
@@ -111,7 +111,7 @@ def test_cli_release_reads_repository_from_config(
     assert cli.main(["release", "--yes"]) == 0
 
     args = run.call_args.args[0]
-    assert args[2:] == ["--yes", "--repository", "reachreel"]
+    assert args[2:] == ["--yes", "--repository", "myproject"]
 
 
 def test_cli_release_flag_beats_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -125,7 +125,7 @@ def test_cli_release_flag_beats_config(tmp_path: Path, monkeypatch: pytest.Monke
             version = "0.1.0"
 
             [tool.apdev]
-            pypi_repository = "reachreel"
+            pypi_repository = "myproject"
             """
         ),
         encoding="utf-8",
@@ -180,7 +180,7 @@ def test_cli_release_account_flag_beats_config(
 
             [tool.apdev]
             github_account = "work-account"
-            pypi_repository = "reachreel"
+            pypi_repository = "myproject"
             """
         ),
         encoding="utf-8",
@@ -193,7 +193,7 @@ def test_cli_release_account_flag_beats_config(
     args = run.call_args.args[0]
     assert args[2:] == [
         "--repository",
-        "reachreel",
+        "myproject",
         "--account",
         "personal-account",
         "0.2.0",

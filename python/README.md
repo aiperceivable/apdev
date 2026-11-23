@@ -66,7 +66,7 @@ apdev release
 apdev release 0.2.0
 
 # Upload to a named .pypirc section (default: [tool.apdev] pypi_repository, or "pypi")
-apdev release --repository reachreel
+apdev release --repository myproject
 apdev release -r testpypi 0.3.0
 
 # Publish the GitHub release as another account (default: [tool.apdev] github_account, or gh's active account)
@@ -99,13 +99,13 @@ second PyPI account is never a guess:
 [distutils]
 index-servers =
     pypi
-    reachreel
+    myproject
 
 [pypi]
 username = __token__
 password = pypi-A...        # account A
 
-[reachreel]
+[myproject]
 repository = https://upload.pypi.org/legacy/
 username = __token__
 password = pypi-B...        # account B
