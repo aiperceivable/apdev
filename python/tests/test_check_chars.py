@@ -389,3 +389,12 @@ def test_escaped_quote_inside_string(tmp_path: Path) -> None:
     f.write_text(f'x = "a \\" # b" {BIDI}\n', encoding="utf-8")
 
     assert any("Dangerous character" in p for p in check_file(f))
+
+
+def test_binary_file_is_skipped(tmp_path: Path) -> None:
+    """An explicitly passed binary file is skipped, not traced back."""
+    f = tmp_path / "blob.dat"
+    f.write_bytes(b"\x00\x01\xff\xfe")
+
+    assert check_file(f) == []
+    assert check_paths([f]) == 0

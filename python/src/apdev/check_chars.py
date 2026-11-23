@@ -243,7 +243,8 @@ def check_file(
 ) -> list[str]:
     """Check a single file for illegal characters.
 
-    Returns a list of problem descriptions (empty if the file is clean).
+    Returns a list of problem descriptions, empty when the file is clean or is
+    not valid UTF-8 (a binary file has no characters to validate).
     """
     problems: list[str] = []
     if extra_ranges is None or dangerous is None:
@@ -254,25 +255,28 @@ def check_file(
             dangerous = default_dangerous
     try:
         content = path.read_text(encoding="utf-8")
-        suffix = path.suffix.lower()
-        comment_mask = _compute_comment_mask(content, suffix)
-        for i, char in enumerate(content):
-            if ord(char) in dangerous:
-                if i not in comment_mask:
-                    code = ord(char)
-                    name = dangerous[code]
-                    problems.append(
-                        f"Dangerous character in code at position {i + 1}: "
-                        f"U+{code:04X} ({name})"
-                    )
-            elif not _is_in_ranges(char, extra_ranges):
-                problems.append(
-                    f"Illegal character at position {i + 1}: " f"{char!r} (U+{ord(char):04X})"
-                )
-            if len(problems) >= max_problems:
-                break
+    except UnicodeDecodeError:
+        # Not a text file, so "allowed characters" does not apply to it.
+        # Directories are filtered by _SKIP_SUFFIXES; an explicit path needs
+        # the same treatment instead of a traceback.
+        return []
     except OSError as exc:
-        problems.append(f"Failed to read file: {exc}")
+        return [f"Failed to read file: {exc}"]
+
+    suffix = path.suffix.lower()
+    comment_mask = _compute_comment_mask(content, suffix)
+    for i, char in enumerate(content):
+        if ord(char) in dangerous:
+            if i not in comment_mask:
+                code = ord(char)
+                name = dangerous[code]
+                problems.append(
+                    f"Dangerous character in code at position {i + 1}: " f"U+{code:04X} ({name})"
+                )
+        elif not _is_in_ranges(char, extra_ranges):
+            problems.append(f"Illegal character at position {i + 1}: {char!r} (U+{ord(char):04X})")
+        if len(problems) >= max_problems:
+            break
     return problems
 
 
