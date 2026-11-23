@@ -68,6 +68,10 @@ apdev release 0.2.0
 # Upload to a named .pypirc section (default: [tool.apdev] pypi_repository, or "pypi")
 apdev release --repository reachreel
 apdev release -r testpypi 0.3.0
+
+# Publish the GitHub release as another account (default: [tool.apdev] github_account, or gh's active account)
+apdev release --account wilfred
+apdev release -a tercel 0.3.0
 ```
 
 The command provides an interactive menu with steps:
@@ -107,6 +111,28 @@ username = __token__
 password = pypi-B...        # account B
 ```
 
+### Releasing with a second GitHub account
+
+`git push` already follows the remote (for example an SSH alias per account),
+but `gh` uses one active login. Log the second account in once — `gh` keeps
+several accounts per host — and let the repository choose which one releases:
+
+```bash
+gh auth login --git-protocol ssh     # first account
+gh auth login --git-protocol ssh     # second account, same host
+gh auth status                       # both logins listed, one active
+```
+
+```toml
+[tool.apdev]
+github_account = "wilfred"
+```
+
+`apdev release` then resolves that account's token with
+`gh auth token --user wilfred`, exports it as `GH_TOKEN`/`GITHUB_TOKEN` for the
+run only, and prints `GitHub user: wilfred` in the header. The global active
+account is never switched, so other repositories keep their own identity.
+
 Override auto-detection with environment variables:
 
 ```bash
@@ -122,6 +148,7 @@ Add to your project's `pyproject.toml` so commands can run without CLI arguments
 base_package = "mypackage"    # Required by check-imports
 src_dir = "src"               # Source directory (default: "src")
 pypi_repository = "mypackage" # .pypirc section for `apdev release` (default: "pypi")
+github_account = "wilfred"    # gh login for the GitHub release (default: gh's active account)
 ```
 
 With this config, the commands work out of the box:

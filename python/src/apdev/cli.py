@@ -86,6 +86,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Auto-accept all defaults (silent mode)",
     )
     release_parser.add_argument(
+        "--account",
+        "-a",
+        dest="account",
+        help=(
+            "GitHub account (gh login) used to publish the release "
+            "(default: [tool.apdev] github_account, or gh's active account)"
+        ),
+    )
+    release_parser.add_argument(
         "--repository",
         "-r",
         dest="repository",
@@ -157,9 +166,13 @@ def main(argv: list[str] | None = None) -> int:
         cmd = ["bash", str(script)]
         if args.yes:
             cmd.append("--yes")
-        repository = args.repository or load_config().get("pypi_repository")
+        config = load_config()
+        repository = args.repository or config.get("pypi_repository")
         if repository:
             cmd.extend(["--repository", str(repository)])
+        account = args.account or config.get("github_account")
+        if account:
+            cmd.extend(["--account", str(account)])
         if args.version:
             cmd.append(args.version)
         release_env = os.environ.copy()

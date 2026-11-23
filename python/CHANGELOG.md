@@ -16,8 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   flag, `PYPI_REPOSITORY` environment variable, `[tool.apdev]`, then `pypi`.
 - The release header prints the resolved section, so it is obvious which PyPI
   account a release will use before anything is uploaded.
+- `apdev release --account NAME` / `-a NAME`, and `[tool.apdev]
+  github_account`, so the GitHub release is published as a chosen `gh` login
+  instead of whichever account happens to be active. The token is resolved
+  with `gh auth token --user NAME` and exported for that run only; the active
+  account is never switched. `GITHUB_ACCOUNT` works as an environment
+  override, and an account that is not logged in aborts before any step runs.
 - `[tool.apdev]` keys are documented in the README Configuration section,
-  including `pypi_repository`.
+  including `pypi_repository` and `github_account`.
 
 ### Changed
 

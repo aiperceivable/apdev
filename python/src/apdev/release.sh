@@ -7,7 +7,8 @@
 #
 # Auto-detects project name from pyproject.toml and GitHub repo from git remote.
 # Override with environment variables: PROJECT_NAME, PACKAGE_NAME, GITHUB_REPO,
-# PYPI_REPOSITORY (named .pypirc section, default "pypi").
+# PYPI_REPOSITORY (named .pypirc section, default "pypi"), GITHUB_ACCOUNT
+# (gh login to publish the GitHub release as; default: gh's active account).
 
 # Note: set -e is disabled to allow step-by-step execution
 # Individual steps will handle their own error handling
@@ -15,6 +16,7 @@
 # Silent mode flag (--yes or -y to auto-accept all defaults)
 SILENT=false
 PYPI_REPOSITORY="${PYPI_REPOSITORY:-}"
+GITHUB_ACCOUNT="${GITHUB_ACCOUNT:-}"
 POSITIONAL_ARGS=()
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -29,6 +31,17 @@ while [ "$#" -gt 0 ]; do
             ;;
         --repository=*)
             PYPI_REPOSITORY="${1#*=}"
+            ;;
+        --account|-a)
+            if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+                echo "Error: --account needs a GitHub login" >&2
+                exit 1
+            fi
+            GITHUB_ACCOUNT="$2"
+            shift
+            ;;
+        --account=*)
+            GITHUB_ACCOUNT="${1#*=}"
             ;;
         *) POSITIONAL_ARGS+=("$1") ;;
     esac
@@ -91,6 +104,43 @@ if [ -z "$PYPI_REPOSITORY" ] && [ -f pyproject.toml ]; then
 fi
 PYPI_REPOSITORY="${PYPI_REPOSITORY:-pypi}"
 
+# GitHub account: --account, then GITHUB_ACCOUNT, then [tool.apdev]
+# github_account, then whatever `gh` has active. When set, its token is exported
+# for this run only, so `gh` and the API fallback act as that user without
+# touching the global `gh auth switch` state.
+if [ -z "$GITHUB_ACCOUNT" ] && [ -f pyproject.toml ]; then
+    GITHUB_ACCOUNT=$(awk '
+        /^[[:space:]]*\[/ {
+            in_apdev = ($0 ~ /^[[:space:]]*\[tool\.apdev\][[:space:]]*$/)
+            next
+        }
+        in_apdev && /^[[:space:]]*github_account[[:space:]]*=/ {
+            print
+            exit
+        }
+    ' pyproject.toml | sed -E 's/^[^=]*=[[:space:]]*//; s/[[:space:]]+$//; s/^"//; s/"$//; s/^\x27//; s/\x27$//')
+fi
+
+if [ -n "$GITHUB_ACCOUNT" ]; then
+    if ! command -v gh > /dev/null 2>&1; then
+        echo -e "${RED}Error: --account/GITHUB_ACCOUNT needs the GitHub CLI${NC}"
+        echo -e "${YELLOW}Install it (brew install gh) or unset the account to use GITHUB_TOKEN${NC}"
+        exit 1
+    fi
+    if ! GH_ACCOUNT_TOKEN=$(gh auth token --user "$GITHUB_ACCOUNT" 2>/dev/null) || [ -z "$GH_ACCOUNT_TOKEN" ]; then
+        echo -e "${RED}Error: GitHub account '${GITHUB_ACCOUNT}' is not logged in${NC}"
+        echo -e "${YELLOW}Add it once with: gh auth login --git-protocol ssh${NC}"
+        echo -e "${YELLOW}Then verify with: gh auth status${NC}"
+        exit 1
+    fi
+    if [ -n "$GITHUB_TOKEN" ] && [ "$GITHUB_TOKEN" != "$GH_ACCOUNT_TOKEN" ]; then
+        echo -e "${YELLOW}Note: GITHUB_TOKEN was set; using the token of '${GITHUB_ACCOUNT}' instead${NC}"
+    fi
+    GH_TOKEN="$GH_ACCOUNT_TOKEN"
+    GITHUB_TOKEN="$GH_ACCOUNT_TOKEN"
+    export GH_TOKEN GITHUB_TOKEN
+fi
+
 # Get version from argument or pyproject.toml
 if [ -z "$1" ]; then
     VERSION=$(grep -E '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
@@ -111,6 +161,7 @@ echo -e "${CYAN}╚════════════════════�
 echo -e "  Project:     ${CYAN}${PROJECT_NAME}${NC}"
 [ -n "$GITHUB_REPO" ] && echo -e "  GitHub:      ${CYAN}${GITHUB_REPO}${NC}"
 echo -e "  PyPI:        ${CYAN}${PYPI_REPOSITORY}${NC}"
+[ -n "$GITHUB_ACCOUNT" ] && echo -e "  GitHub user: ${CYAN}${GITHUB_ACCOUNT}${NC}"
 echo ""
 
 # Function to check if step is already done
@@ -473,9 +524,14 @@ step6_git_tag() {
 
 # Function to get GitHub token from various sources
 get_github_token() {
-    # 1. Check environment variable
+    # 1. Check environment variable. GH_TOKEN comes first for the account
+    # selected by --account/GITHUB_ACCOUNT, which step 6.5 does not clear.
     if [ -n "$GITHUB_TOKEN" ]; then
         echo "$GITHUB_TOKEN"
+        return 0
+    fi
+    if [ -n "$GH_TOKEN" ]; then
+        echo "$GH_TOKEN"
         return 0
     fi
     

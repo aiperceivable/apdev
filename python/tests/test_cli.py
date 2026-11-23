@@ -139,6 +139,67 @@ def test_cli_release_flag_beats_config(tmp_path: Path, monkeypatch: pytest.Monke
     assert args[2:] == ["--repository", "testpypi"]
 
 
+def test_cli_release_forwards_account_from_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """[tool.apdev] github_account selects the gh login for the release."""
+    monkeypatch.chdir(tmp_path)
+    Path("pyproject.toml").write_text(
+        textwrap.dedent(
+            """
+            [project]
+            name = "demo"
+            version = "0.1.0"
+
+            [tool.apdev]
+            github_account = "wilfred"
+            """
+        ),
+        encoding="utf-8",
+    )
+    run = Mock(return_value=subprocess.CompletedProcess(args=[], returncode=0))
+    monkeypatch.setattr(cli.subprocess, "run", run)
+
+    assert cli.main(["release", "--yes"]) == 0
+
+    args = run.call_args.args[0]
+    assert args[2:] == ["--yes", "--account", "wilfred"]
+
+
+def test_cli_release_account_flag_beats_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--account wins over [tool.apdev], and both flags are forwarded."""
+    monkeypatch.chdir(tmp_path)
+    Path("pyproject.toml").write_text(
+        textwrap.dedent(
+            """
+            [project]
+            name = "demo"
+            version = "0.1.0"
+
+            [tool.apdev]
+            github_account = "wilfred"
+            pypi_repository = "reachreel"
+            """
+        ),
+        encoding="utf-8",
+    )
+    run = Mock(return_value=subprocess.CompletedProcess(args=[], returncode=0))
+    monkeypatch.setattr(cli.subprocess, "run", run)
+
+    assert cli.main(["release", "--account", "tercel", "0.2.0"]) == 0
+
+    args = run.call_args.args[0]
+    assert args[2:] == [
+        "--repository",
+        "reachreel",
+        "--account",
+        "tercel",
+        "0.2.0",
+    ]
+
+
 def test_cli_check_chars_clean(tmp_path: Path) -> None:
     """apdev check-chars returns 0 for clean files."""
     f = tmp_path / "ok.py"
