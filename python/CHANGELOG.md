@@ -8,6 +8,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.8] - 2026-11-23
+
+### Added
+
+- CI for the Python package: ruff check and format, pytest with coverage on a
+  3.10-3.13 matrix, `bash -n` and shellcheck for `release.sh`, `python -m build`
+  plus `twine check`, and `uv lock --check`.
+- `make lint-python`, `format-python`, `test-python`, `build-python` and
+  `check-python` in the root Makefile.
+- `[tool.apdev]` in this package's own `pyproject.toml`, and a CI step that runs
+  `apdev check-chars` and `apdev check-imports` on the package itself.
+- The package declares `Typing :: Typed`, matching the `py.typed` it ships.
+
+### Changed
+
+- Ship the Apache-2.0 licence: `LICENSE` and `NOTICE` are now in the
+  repository, the wheel and the sdist, with PEP 639 metadata
+  (`license = "Apache-2.0"` plus `license-files`). The licence classifier is
+  gone, and `build-system.requires` needs `setuptools>=77`.
+- `build` moved out of the runtime dependencies into `apdev[release]`, and stays
+  in `apdev[dev]`. A plain install no longer pulls `build`, `packaging` and
+  `pyproject-hooks`, and `release.sh` names the extra when the frontend is
+  missing.
+- ruff also checks `B`, `UP`, `SIM`, `RUF` and `PTH`; pytest runs with
+  `-ra --strict-markers --strict-config` and enforces coverage at 80% (branch
+  coverage is 87%).
+- `uv.lock` regenerated; it still pinned apdev 0.2.5.
+
+### Fixed
+
+- `check-imports` no longer reports "no circular imports detected" when nothing
+  was scanned: a missing package directory, a wrong `--package`, or a package
+  without modules exits 1. `from pkg import sub` is recorded as `pkg.sub`, so
+  cycles using that import style are found.
+- `check-chars`: missing paths report "file not found", malformed charset files
+  report `Error: Invalid charset ...` instead of a JSON traceback, binary files
+  are skipped instead of raising `UnicodeDecodeError`, and an explicit path that
+  expands to nothing is an error.
+- The test modules start with `from __future__ import annotations`, so
+  `str | Path` signatures no longer break collection on Python 3.10.
+- `release.sh` no longer uses `local x=$(...)`, which masked exit statuses
+  (shellcheck SC2155).
+- CI: the workflow-level `defaults.run.working-directory` also applied to the
+  shellcheck job, resolving its path to `python/python/src/...`; the default is
+  scoped to the test job now.
+- Three assertions in the charset tests were written the wrong way round (they
+  asked whether a range sits inside the CJK block instead of whether CJK sits
+  inside a range); they use a `_contains()` helper now.
+- Test fixtures use `\u` escapes rather than literal CJK, so the repository
+  passes its own default `check-chars` run.
+
 ## [0.2.7] - 2026-11-22
 
 ### Added
@@ -25,66 +76,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - The README documents `github_account` and the two-login `gh` setup.
-
-### Changed
-
-- `build` moved out of the runtime dependencies into `apdev[release]` and
-  `apdev[dev]`: only `apdev release` needs a build frontend, so plain installs
-  no longer pull `build`, `packaging` and `pyproject-hooks`. `release.sh` now
-  says which extra to install when the frontend is missing.
-- `uv.lock` regenerated (it still pinned apdev 0.2.5).
-
-### Fixed
-
-- The test modules now start with `from __future__ import annotations`, so the
-  `str | Path` signatures do not fail at import time on Python 3.10, the lowest
-  version the package claims to support.
-- `release.sh` no longer uses `local x=$(...)`, which masked exit statuses and
-  tripped shellcheck's SC2155.
-
-### Added
-
-- `make lint-python`, `format-python`, `test-python`, `build-python` and
-  `check-python` (root Makefile), so the Python workflow no longer has to be
-  reconstructed from memory.
-- CI for the Python package: ruff check and format, pytest with coverage on a
-  3.10-3.13 matrix, `bash -n` and shellcheck for `release.sh`, `python -m build`
-  plus `twine check`, and `uv lock --check`.
-
-### Fixed
-
-- A malformed `--charset-file` (invalid JSON, wrong shape, bad range entry)
-  raised a traceback; it now reports `Error: Invalid charset ...` and exits 1.
-- An explicit path that expands to nothing (empty directory, wrong glob) passed
-  silently; it is now an error. The no-argument default scan still tolerates an
-  empty project.
-- CI: the workflow-level `defaults.run.working-directory` also applied to the
-  shellcheck job, which made its `python/src/...` path resolve to
-  `python/python/src/...`; the default is now scoped to the test job.
-
-### Added
-
-- `[tool.apdev]` in this package's own `pyproject.toml`, and a CI step that runs
-  `apdev check-chars` and `apdev check-imports` on the package itself. The
-  charset check initially failed on the new tests because they contained
-  literal CJK; the fixtures use `\u` escapes now, so the repository passes its
-  own default check.
-
-### Tooling
-
-- ruff now also checks `B`, `UP`, `SIM`, `RUF` and `PTH`; the ten findings it
-  surfaced are fixed, including three assertions in the charset tests that had
-  been written the wrong way round.
-- pytest runs with `-ra --strict-markers --strict-config`, and coverage is
-  enforced at 80% (branch coverage, 83% locally) by `pytest --cov`.
-- The package declares `Typing :: Typed`, which matches the `py.typed` it ships.
-
-### Packaging
-
-- Add `LICENSE` and `NOTICE` (Apache-2.0) to the repository and ship them in
-  the wheel and sdist; switch to the PEP 639 metadata (`license = "Apache-2.0"`
-  plus `license-files`), which needs `setuptools>=77`. The licence classifier is
-  dropped because a licence expression is now present.
 
 ### Fixed
 

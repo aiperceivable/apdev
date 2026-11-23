@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "apdev"
-version = "0.2.7"
+version = "0.2.8"
 description = "Shared development tools for Python projects - character validation, circular import detection, and more"
 readme = "README.md"
 license = "Apache-2.0"
