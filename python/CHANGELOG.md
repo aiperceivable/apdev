@@ -26,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - The README documents `github_account` and the two-login `gh` setup.
 
+### Packaging
+
+- Add `LICENSE` and `NOTICE` (Apache-2.0) to the repository and ship them in
+  the wheel and sdist; switch to the PEP 639 metadata (`license = "Apache-2.0"`
+  plus `license-files`), which needs `setuptools>=77`. The licence classifier is
+  dropped because a licence expression is now present.
+
 ### Fixed
 
 - `owner/repo` is parsed from any remote form, including per-account SSH

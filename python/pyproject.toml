@@ -1,5 +1,6 @@
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
+# setuptools >= 77 understands PEP 639 (SPDX licence expression + license-files).
+requires = ["setuptools>=77.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,7 +8,8 @@ name = "apdev"
 version = "0.2.7"
 description = "Shared development tools for Python projects - character validation, circular import detection, and more"
 readme = "README.md"
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.10"
 authors = [
     {name = "aiperceivable", email = "tercel.yi@gmail.com"}
@@ -26,7 +28,6 @@ keywords = [
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
     "Topic :: Software Development :: Quality Assurance",
     "Topic :: Software Development :: Testing",
     "Programming Language :: Python :: 3",
