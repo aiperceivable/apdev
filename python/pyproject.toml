@@ -35,6 +35,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
 ]
 dependencies = [
     "tomli>=1.1.0;python_version<'3.11'",
@@ -64,13 +65,25 @@ apdev = ["release.sh", "charsets/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers", "--strict-config"]
+
+[tool.coverage.run]
+branch = true
+source = ["apdev"]
+
+[tool.coverage.report]
+# 3.10/3.11 branches (tomli fallback) only run on some CI matrix entries, so the
+# gate sits below the local number instead of pretending to be exact.
+fail_under = 80
+show_missing = true
+skip_covered = true
 
 [tool.ruff]
 target-version = "py310"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W"]
+select = ["E", "F", "I", "W", "B", "UP", "SIM", "RUF", "PTH"]
 
 [project.urls]
 Homepage = "https://aiperceivable.com"

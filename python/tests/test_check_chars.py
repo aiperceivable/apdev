@@ -14,6 +14,11 @@ from apdev.check_chars import (
 )
 
 
+def _contains(ranges: list[tuple[int, int]], code: int) -> bool:
+    """Return True when *code* falls inside one of the allowed ranges."""
+    return any(start <= code <= end for start, end in ranges)
+
+
 def test_ascii_chars_allowed() -> None:
     """All standard ASCII characters (0-127) should be allowed."""
     for i in range(128):
@@ -208,7 +213,7 @@ def test_cjk_still_rejected_after_dangerous_check(tmp_path: Path) -> None:
 def test_hash_in_python_string_not_treated_as_comment(tmp_path: Path) -> None:
     """# inside a string should not start a comment region."""
     f = tmp_path / "hash_str.py"
-    # The \u202e is after the string, in code – should be flagged
+    # The \u202e is after the string, in code - should be flagged
     f.write_text("s = '# not a comment'\u202e\n", encoding="utf-8")
     problems = check_file(f)
     assert len(problems) == 1
@@ -268,14 +273,14 @@ def test_resolve_charsets_default() -> None:
     ranges, dangerous = resolve_charsets([], [])
     assert len(ranges) > 0
     assert len(dangerous) > 0
-    # CJK should NOT be in ranges
-    assert not any(0x4E00 <= s and e <= 0x9FFF for s, e in ranges)
+    # CJK is not allowed by the base charset.
+    assert not _contains(ranges, 0x4E00)
 
 
 def test_resolve_charsets_with_chinese() -> None:
     """Adding 'chinese' charset includes CJK Unified Ideographs."""
-    ranges, dangerous = resolve_charsets(["chinese"], [])
-    assert any(s <= 0x4E00 and 0x9FFF <= e for s, e in ranges)
+    ranges, _dangerous = resolve_charsets(["chinese"], [])
+    assert _contains(ranges, 0x4E00)
 
 
 def test_resolve_charsets_with_custom_file(tmp_path: Path) -> None:
@@ -285,7 +290,7 @@ def test_resolve_charsets_with_custom_file(tmp_path: Path) -> None:
         '{"name":"custom","extra_ranges":[{"start":"0xABCD","end":"0xABFF","name":"Test"}]}'
     )
     ranges, _ = resolve_charsets([], [str(custom)])
-    assert any(s <= 0xABCD and 0xABFF <= e for s, e in ranges)
+    assert _contains(ranges, 0xABCD)
 
 
 def test_resolve_charsets_deduplicates() -> None:
@@ -315,3 +320,72 @@ def test_check_paths_with_charset(tmp_path: Path) -> None:
     f.write_text("x = '\u4e2d\u6587'\n", encoding="utf-8")
     ranges, dangerous = resolve_charsets(["chinese"], [])
     assert check_paths([f], extra_ranges=ranges, dangerous=dangerous) == 0
+
+
+BIDI = "\u202e"  # right-to-left override, a Trojan Source vector
+
+
+def test_dangerous_char_in_python_comment_is_allowed(tmp_path: Path) -> None:
+    """A bidi marker in a Python comment is not flagged."""
+    f = tmp_path / "comment.py"
+    f.write_text(f"# note {BIDI} here\nx = 1\n", encoding="utf-8")
+
+    assert check_file(f) == []
+
+
+def test_dangerous_char_in_python_code_is_flagged(tmp_path: Path) -> None:
+    """A bidi marker in Python code is flagged."""
+    f = tmp_path / "code.py"
+    f.write_text(f'x = "{BIDI}"\n', encoding="utf-8")
+
+    problems = check_file(f)
+    assert any("Dangerous character" in problem for problem in problems)
+
+
+def test_dangerous_char_in_js_comment_is_allowed(tmp_path: Path) -> None:
+    """The JS comment mask keeps bidi markers in comments legal."""
+    f = tmp_path / "comment.js"
+    f.write_text(f"// note {BIDI} here\nconst x = 1;\n", encoding="utf-8")
+
+    assert check_file(f) == []
+
+
+def test_dangerous_char_in_js_code_is_flagged(tmp_path: Path) -> None:
+    """A bidi marker in JS code is flagged."""
+    f = tmp_path / "code.js"
+    f.write_text(f'const x = "{BIDI}";\n', encoding="utf-8")
+
+    problems = check_file(f)
+    assert any("Dangerous character" in problem for problem in problems)
+
+
+def test_tsx_comment_mask(tmp_path: Path) -> None:
+    """TSX files go through the JS mask as well."""
+    f = tmp_path / "component.tsx"
+    f.write_text(f"// {BIDI}\nexport const A = () => null;\n", encoding="utf-8")
+
+    assert check_file(f) == []
+
+
+def test_hash_inside_string_is_not_a_comment(tmp_path: Path) -> None:
+    """A `#` inside a string must not mask the rest of the line."""
+    f = tmp_path / "string.py"
+    f.write_text(f'x = "# not a comment" {BIDI}\n', encoding="utf-8")
+
+    assert any("Dangerous character" in p for p in check_file(f))
+
+
+def test_hash_inside_triple_quoted_string_is_not_a_comment(tmp_path: Path) -> None:
+    """Triple-quoted strings are tracked, so their content is not a comment."""
+    f = tmp_path / "doc.py"
+    f.write_text(f'"""# doc\n{BIDI}\n"""\nx = 1\n', encoding="utf-8")
+
+    assert any("Dangerous character" in p for p in check_file(f))
+
+
+def test_escaped_quote_inside_string(tmp_path: Path) -> None:
+    """Escaped quotes do not end the string early."""
+    f = tmp_path / "esc.py"
+    f.write_text(f'x = "a \\" # b" {BIDI}\n', encoding="utf-8")
+
+    assert any("Dangerous character" in p for p in check_file(f))

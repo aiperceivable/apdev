@@ -30,14 +30,11 @@ class ImportAnalyzer(ast.NodeVisitor):
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         if node.level > 0 and self._current_module:
-            # Relative import – resolve against current module/package.
+            # Relative import - resolve against current module/package.
             parts = self._current_module.split(".")
             # For a package (__init__.py) the package is the module itself;
             # for a regular module the package is the parent.
-            if self._is_package:
-                levels_to_strip = node.level - 1
-            else:
-                levels_to_strip = node.level
+            levels_to_strip = node.level - 1 if self._is_package else node.level
 
             if levels_to_strip > 0 and levels_to_strip < len(parts):
                 base_parts = parts[:-levels_to_strip]
@@ -55,9 +52,9 @@ class ImportAnalyzer(ast.NodeVisitor):
                     if alias.name != "*":
                         self.imports.add(f"{resolved}.{alias.name}")
             else:
-                # ``from . import foo, bar`` – each name is a sub-module.
+                # ``from . import foo, bar`` - each name is a sub-module.
                 for alias in node.names:
-                    resolved = ".".join(base_parts + [alias.name])
+                    resolved = ".".join([*base_parts, alias.name])
                     self.imports.add(resolved)
         elif node.module:
             self.imports.add(node.module)

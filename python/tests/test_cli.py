@@ -435,3 +435,58 @@ def test_cli_check_imports_missing_package(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert "not found under" in result.stderr
+
+
+def test_cli_no_command_prints_help(capsys) -> None:
+    """`apdev` with no subcommand prints help and exits 0."""
+    assert cli.main([]) == 0
+    assert "check-chars" in capsys.readouterr().out
+
+
+def test_cli_check_chars_unknown_charset_in_process(tmp_path: Path, capsys) -> None:
+    """Unknown charset is reported in-process, with exit code 1."""
+    f = tmp_path / "ok.py"
+    f.write_text("x = 1\n", encoding="utf-8")
+
+    assert cli.main(["check-chars", "--charset", "nope", str(f)]) == 1
+    assert "Unknown charset" in capsys.readouterr().err
+
+
+def test_cli_check_chars_env_charset(tmp_path: Path, monkeypatch, capsys) -> None:
+    """APDEV_EXTRA_CHARS supplies charsets when no flags are given."""
+    f = tmp_path / "cn.py"
+    f.write_text("x = '中文'\n", encoding="utf-8")
+
+    monkeypatch.setenv("APDEV_EXTRA_CHARS", "chinese")
+    assert cli.main(["check-chars", str(f)]) == 0
+    assert "passed" in capsys.readouterr().out
+
+
+def test_cli_check_chars_env_charset_file(tmp_path: Path, monkeypatch, capsys) -> None:
+    """A .json entry in APDEV_EXTRA_CHARS is treated as a charset file."""
+    charset = tmp_path / "custom.json"
+    charset.write_text(
+        '{"name":"custom","extra_ranges":[{"start":"0x4E00","end":"0x9FFF","name":"CJK"}]}',
+        encoding="utf-8",
+    )
+    f = tmp_path / "cn.py"
+    f.write_text("x = '中文'\n", encoding="utf-8")
+
+    monkeypatch.setenv("APDEV_EXTRA_CHARS", str(charset))
+    assert cli.main(["check-chars", str(f)]) == 0
+    assert "passed" in capsys.readouterr().out
+
+
+def test_cli_check_imports_requires_package(tmp_path: Path, monkeypatch, capsys) -> None:
+    """Without base_package the command explains what to pass."""
+    monkeypatch.chdir(tmp_path)
+
+    assert cli.main(["check-imports"]) == 1
+    assert "--package is required" in capsys.readouterr().err
+
+
+def test_module_entry_point(capsys) -> None:
+    """`python -m apdev` works as an entry point."""
+    result = run_apdev("--version")
+    assert result.returncode == 0
+    assert "apdev" in result.stdout

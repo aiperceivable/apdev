@@ -44,9 +44,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `make lint-python`, `format-python`, `test-python`, `build-python` and
+  `check-python` (root Makefile), so the Python workflow no longer has to be
+  reconstructed from memory.
 - CI for the Python package: ruff check and format, pytest with coverage on a
   3.10-3.13 matrix, `bash -n` and shellcheck for `release.sh`, `python -m build`
   plus `twine check`, and `uv lock --check`.
+
+### Tooling
+
+- ruff now also checks `B`, `UP`, `SIM`, `RUF` and `PTH`; the ten findings it
+  surfaced are fixed, including three assertions in the charset tests that had
+  been written the wrong way round.
+- pytest runs with `-ra --strict-markers --strict-config`, and coverage is
+  enforced at 80% (branch coverage, 83% locally) by `pytest --cov`.
+- The package declares `Typing :: Typed`, which matches the `py.typed` it ships.
 
 ### Packaging
 

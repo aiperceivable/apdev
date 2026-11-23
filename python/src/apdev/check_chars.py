@@ -81,10 +81,7 @@ def _is_in_ranges(c: str, ranges: list[tuple[int, int]]) -> bool:
     code = ord(c)
     if code <= 127:
         return True
-    for start, end in ranges:
-        if start <= code <= end:
-            return True
-    return False
+    return any(start <= code <= end for start, end in ranges)
 
 
 # Lazy-loaded base charset defaults for backward-compatible public API

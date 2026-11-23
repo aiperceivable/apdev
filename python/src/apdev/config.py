@@ -32,7 +32,7 @@ def load_config(project_dir: Path | None = None) -> dict[str, Any]:
     if not pyproject_path.is_file():
         return {}
 
-    with open(pyproject_path, "rb") as f:
-        data = tomllib.load(f)
+    with pyproject_path.open("rb") as fh:
+        data = tomllib.load(fh)
 
     return data.get("tool", {}).get("apdev", {})
